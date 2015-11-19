@@ -38,6 +38,12 @@ class RxPSocket:
         self.seqNum = 0
         self.ackNum = 0
 
+    def gettimeout(self):
+        return self.socket.gettimeout()
+        
+    def settimeout(self, val):
+        return self.socket.settimeout()
+	
     # Bind the socket to a specific local RxP port.
     # Set the object's port var.
     def bind(self, aPort):
