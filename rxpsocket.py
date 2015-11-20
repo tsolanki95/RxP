@@ -40,10 +40,10 @@ class RxPSocket:
 
     def gettimeout(self):
         return self.socket.gettimeout()
-        
+
     def settimeout(self, val):
         return self.socket.settimeout()
-	
+
     # Bind the socket to a specific local RxP port.
     # Set the object's port var.
     def bind(self, aPort):
@@ -62,9 +62,34 @@ class RxPSocket:
     # Uses the RxP handshake as described in the RxP state diagram.
     # Once connection is established, sets up memory and window.
     def listen(self):
-         if port == None:
-             raise Exception("The port has not been set. You cannot listen.")
-             sys.exit(1)
+        if port == None:
+            raise Exception("The port has not been set. You cannot listen.")
+            sys.exit(1)
+
+        # Loop for listening for conneciton attemps.
+        while True:
+            # Blocks until we have a connecton attempt
+            self.socket.settimeout(None)
+            UDPpacket = byteArray(self.socket.recv(1024))
+            theRxPacket = rxpacket(UDPpacket)
+            packetType = None;
+
+            # Do nothing / throw out if invalid packet
+            if !theRxPacket.isValid():
+
+            # Handle the packet if valid.
+            if theRxPacket.isValid():
+                # Figure out what kind of packet it is, and pass to appropriate handler.
+                if theRxPacket.isINIT:
+
+                if theRxPacket.isCNCT:
+
+
+            # Once we get a connection attempt, we can use timeouts to ensure that
+            #  lost packets don't cause us to timeout forever.
+            self.socket.settimeout(5)
+
+
 
 
     # Connects to the specified host on the specified port.
@@ -80,4 +105,3 @@ class RxPSocket:
 
         # Create an init packet and send it off to the host we wish to connect to.
         rxpacket.getInit(locPort, destPort, seqNum, ackNum)
-        
