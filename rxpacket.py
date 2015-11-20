@@ -8,7 +8,7 @@ class RxPacket:
     
     # This class will be used to store helper functions for the RxP packet design.
     
-    def __init__(self, byteArray = None, srcPort = None, desPort = None, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = ""):
+    def __init__(self, byteArray = None, srcPort = None, desPort = None, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = bytearray()):
         if byteArray == None: #if no byte array
             if srcPort:
                 self.srcPort = srcPort
@@ -32,7 +32,7 @@ class RxPacket:
                 self.winSize = MAX_WINDOW_SIZE
             else:
                 self.winSize = winSize
-                
+                        
             self.data = data
             
         else:
@@ -44,6 +44,16 @@ class RxPacket:
     # Returns a simple CNCT packet.
     def getCnct(srcPort, desPort, seqNum, ackNum):
     
+    def isValid(self, checksum):
+    
+    def isInit(self):
+    
+    def isCnct(self):
+    
+    def isAck(self):
+    
+    def isFin(self):
+    
     #converts byte array to object
     def unpickle(self, byteArray):
         if byteArray:
@@ -51,7 +61,7 @@ class RxPacket:
             unpickleHeader(header)
             
             dataBytes = byteArray[HEADER_LENGTH : ]
-            self.data = dataBytes.decode(encoding = 'UTF-8')
+            self.data = dataBytes
             
 
     # Return a byte array of packets to use when sending via UDP.
@@ -62,7 +72,7 @@ class RxPacket:
     def getByteArray():
         packet = bytearray()
         packet.extend(pickleHeader())
-        packet.extend(self.data.encode(encoding = 'UTF-8'))
+        packet.extend(self.data)
         return packet
         
         
