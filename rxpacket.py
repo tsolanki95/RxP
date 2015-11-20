@@ -4,9 +4,9 @@ class RxPacket:
     MAX_SEQUENCE_NUM = math.pow(2, 32) - 1
     MAX_ACK_NUM = math.pow(2, 32) - 1
     MAX_WINDOW_SIZE = math.pow(2, 16) - 1
+    HEADER_LENGTH = 4 * 32
     
     # This class will be used to store helper functions for the RxP packet design.
-    # The class itself is not meant ot be instantiated.
     
     def __init__(self, byteArray = None, srcPort = None, desPort = None, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = ""):
         if byteArray == None: #if no byte array
@@ -34,13 +34,25 @@ class RxPacket:
                 self.winSize = winSize
                 
             self.data = data
+            
+        else:
+            unpickle(byteArray)
 
     # Returns a simple INIT packet.
     def getInit(srcPort, desPort, seqNum, ackNum):
 
     # Returns a simple CNCT packet.
     def getCnct(srcPort, desPort, seqNum, ackNum):
-
+    
+    #converts byte array to object
+    def unpickle(self, byteArray):
+        if byteArray:
+            headerBytes = byteArray[0 : HEADER_LENGTH - 1]
+            unpickleHeader(header)
+            
+            dataBytes = byteArray[HEADER_LENGTH : ]
+            self.data = dataBytes.decode(encoding = 'UTF-8')
+            
 
     # Return a byte array of packets to use when sending via UDP.
     # flagList should be a 4-length array of booleans corresponding to
@@ -48,3 +60,11 @@ class RxPacket:
     # winSize is the size of the window.
     # Data should be a byte array of data.
     def getByteArray():
+        packet = bytearray()
+        packet.extend(pickleHeader())
+        packet.extend(self.data.encode(encoding = 'UTF-8'))
+        return packet
+        
+        
+        
+        
