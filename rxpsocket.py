@@ -13,18 +13,23 @@ class RxPSocket:
     # Enum to store possible connection states.
     # Global.
     class ConnectionStates(Enum):
-        notConnected = 1
-        listening = 2
-        connected = 3
+        CLOSED = 1
+        LISTENING = 2
+        ESTABLISHED = 3
+        INIT_RCVD = 4
+        INIT_SENT = 5
+        CNCT_SENT = 6
+
 
     # Initliazation of class vars. Local to current instantiated class.
     def __init__(self):
-        self.state = ConnectionStates.notConnected
+        self.state = ConnectionStates.CLOSED
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.windowSize = None  # Window size in bytes
+        self.rcvWindowSize = None  # Receive Window size in bytes
+        self.sendWindowSize = 1 # Send window size in bytes
         self.buffer = None      # Actual memory space for the buffer
-        self.LocPort = None     # Local RxP port, not UDP port
-        self.DestPort = None     # Destination RxP Port, not UDP port
+        self.srcPort = None     # Local RxP port, not UDP port
+        self.destPort = None     # Destination RxP Port, not UDP port
         self.destAddr = None
         self.srcAddr = "127.0.0.1"
         self.timeout = None
@@ -37,6 +42,15 @@ class RxPSocket:
 
         self.seqNum = 0
         self.ackNum = 0
+
+        # Que for data fragments
+        self.dataQ = deque()
+
+        # Que for packets waiting to be sent
+        self.packetQ = deque()
+
+        # Que for packets that have been sent but not acked
+        self.sentQ = deque()
 
     def gettimeout(self):
         return self.socket.gettimeout()
@@ -70,7 +84,8 @@ class RxPSocket:
         while True:
             # Blocks until we have a connecton attempt
             self.socket.settimeout(None)
-            UDPpacket = byteArray(self.socket.recv(1024))
+            self.state = ConnectionState.LISTENING
+            UDPpacket, addr = byteArray(self.socket.recvfrom(1024))
             theRxPacket = rxpacket(UDPpacket)
             packetType = None;
 
@@ -78,11 +93,26 @@ class RxPSocket:
             if !theRxPacket.isValid():
 
             # Handle the packet if valid.
-            if theRxPacket.isValid():
+            elif theRxPacket.isValid():
                 # Figure out what kind of packet it is, and pass to appropriate handler.
-                if theRxPacket.isINIT:
 
-                if theRxPacket.isCNCT:
+                # We have an INIT packet
+                if theRxPacket.isINIT and self.state = ConnectionStates.LISTENING
+                    # Set src info
+                    self.destAddr = addr    # IP adress
+                    self.destPort = theRxPacket.srcPort
+                    self.state = ConnectionStates.INIT_RCVD
+
+                    # Send ACK
+                    ack = rxpacket(None, self.srcPort, self.destPort, self.seqNum, self.ackNum,
+
+
+                # We have a CNCT packet
+                elif theRxPacket.isCNCT and self.state = ConnectionStates.INIT_RCVD
+
+                else:
+
+
 
 
             # Once we get a connection attempt, we can use timeouts to ensure that
