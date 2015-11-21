@@ -9,11 +9,11 @@ fields:
 '''
 class RxPacket:
 
-    #based on bit count for each value
+    # based on bit count for each value
     MAX_SEQUENCE_NUM = math.pow(2, 32) - 1
     MAX_ACK_NUM = math.pow(2, 32) - 1
     MAX_WINDOW_SIZE = math.pow(2, 16) - 1
-    HEADER_LENGTH = 20 #number of bytes in header
+    HEADER_LENGTH = 20 # number of bytes in header
     
     HEADER_FIELDS = ( 
                     ('srcPort', uint16, 2), 
@@ -25,7 +25,7 @@ class RxPacket:
                     ('checksum', uint16, 2) 
                     )
     
-    #static methods
+    # static methods
     
     # Returns a simple INIT packet.
     def getInit(srcPort, desPort, seqNum, ackNum, winSize):
@@ -41,10 +41,9 @@ class RxPacket:
     def fromByteArray(byteArray):
         p = RxPacket()
         p.__unpickle(byteArray)
-        
-    #end static methods
+    # end static methods
     
-    #constructor
+    # constructor
     def __init__(self, srcPort = 0, desPort = 0, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = bytearray()):
         
         if srcPort:
@@ -74,13 +73,16 @@ class RxPacket:
         
         self.header['checksum'] = self.__computeChecksum()
     
-    #instance methods
+    # instance methods
     
+    # checks if the internet checksum provided is equal to what is 
+    # calculated on this side
     def isValid(self):
         givenChecksum = self.header['checksum']
         calculatedChecksum = self.__computeChecksum()
         return givenChecksum == calculatedChecksum
     
+    # checks if it is an init packet
     def isInit(self):
         return header['flags'][0]
     
@@ -95,10 +97,10 @@ class RxPacket:
         
     # Return a byte array of packets to use when sending via UDP.
     # flagList should be a 4-length array of booleans corresponding to
-    #  whether INIT, CNCT, ACK, and FIN are set.
+    # whether INIT, CNCT, ACK, and FIN are set.
     # winSize is the size of the window.
     # Data should be a byte array of data.
-    def getByteArray(self):
+    def toByteArray(self):
         packet = bytearray()
         packet.extend(self.__pickleHeader())
         packet.extend(self.data)
@@ -143,21 +145,21 @@ class RxPacket:
             if (fieldName == 'flags'):
                 value = self.__unpickleFlags(value)
             
-                
+            #add value to header
             self.header[fieldName] = value
             
-            #increment base
+            # increment base
             base = base + size
         
     def __unpickleFlags(self, value):
+        # checks if each individual bit is present
         isInit = ((value & 0x1) == 1)
         isCnct = (((value & 0x2) >> 1) == 1)
         isAck = (((value & 0x4) >> 2) == 1)
         isFin = (((value & 0x8) >> 3) == 1)
         return (isInit, isCnct, isAck, isFin)
         
-        
-        
+    #converts the header to a length 20 bytearray
     def __pickleHeader(self):
         byteArray = bytearray()
         
@@ -170,7 +172,8 @@ class RxPacket:
                 byteArray.extend(self.__pickleFlags())
         
         return byteArray
-        
+    
+    #converts a flag list to a length 4 bytearray
     def __pickleFlags(self):
         value = 0
         flags = self.header['flags']
@@ -183,6 +186,7 @@ class RxPacket:
         if flags[3] == True:
             value = value | (0x1 << 3)
         return bytearray(uint32(value))
+        
     #end instance methods
         
         
