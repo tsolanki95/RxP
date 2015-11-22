@@ -1,3 +1,4 @@
+import rxpsocket
 import socket
 import sys
 

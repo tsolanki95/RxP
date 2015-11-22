@@ -90,27 +90,28 @@ class RxPSocket:
             packetType = None;
 
             # Do nothing / throw out if invalid packet
-            if !theRxPacket.isValid():
-
+            if not theRxPacket.isValid():
+                temp = 1
             # Handle the packet if valid.
             elif theRxPacket.isValid():
                 # Figure out what kind of packet it is, and pass to appropriate handler.
 
                 # We have an INIT packet
-                if theRxPacket.isINIT and self.state = ConnectionStates.LISTENING
+                if theRxPacket.isINIT and self.state == ConnectionStates.LISTENING:
                     # Set src info
                     self.destAddr = addr    # IP adress
                     self.destPort = theRxPacket.srcPort
                     self.state = ConnectionStates.INIT_RCVD
 
                     # Send ACK
-                    ack = rxpacket(None, self.srcPort, self.destPort, self.seqNum, self.ackNum,
+                    ack = rxpacket(None, self.srcPort, self.destPort, self.seqNum, self.ackNum)
 
 
                 # We have a CNCT packet
-                elif theRxPacket.isCNCT and self.state = ConnectionStates.INIT_RCVD
-
+                elif theRxPacket.isCNCT and self.state == ConnectionStates.INIT_RCVD:
+                    temp = 1
                 else:
+                    temp = 1
 
 
 
