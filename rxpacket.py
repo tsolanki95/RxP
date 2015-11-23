@@ -35,7 +35,7 @@ class RxPacket:
         return p
 
     # Returns a simple CNCT packet.
-    def getCnct(srcPort, desPort, seqNum, ackNum):
+    def getCnct(srcPort, desPort, seqNum, ackNum, winSize):
         p = RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False), winSize)
         return p
 
@@ -46,7 +46,7 @@ class RxPacket:
     # end static methods
 
     # constructor
-    def __init__(self, srcPort = 0, desPort = 0, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = bytearray()):
+    def __init__(self, srcPort = 0, desPort = 0, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = None):
 
         if srcPort:
             self.header['srcPort'] = srcPort
@@ -105,7 +105,8 @@ class RxPacket:
     def toByteArray(self):
         packet = bytearray()
         packet.extend(self.__pickleHeader())
-        packet.extend(self.data)
+        if self.data:
+            packet.extend(self.data)
         return packet
 
     #end instance methods
@@ -130,8 +131,11 @@ class RxPacket:
         if byteArray:
             headerBytes = byteArray[0 : HEADER_LENGTH]
             self.__unpickleHeader(headerBytes)
-
-            dataBytes = byteArray[HEADER_LENGTH : ]
+            
+            if (len(byteArray) != HEADER_LENGTH):
+                dataBytes = byteArray[HEADER_LENGTH : ]
+            else:
+                dataBytes = None
             self.data = dataBytes
 
     def __unpickleHeader(self, headerBytes):

@@ -22,17 +22,18 @@ class RxPSocket:
 
 
     # Initliazation of class vars. Local to current instantiated class.
-    def __init__(self):
+    def __init__(self, srcPort):
         self.state = ConnectionStates.CLOSED
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rcvWindowSize = None  # Receive Window size in bytes
+        self.rcvWindowSize = RxPacket.MAX_WINDOW_SIZE  # Receive Window size in bytes
         self.sendWindowSize = 1 # Send window size in bytes
         self.buffer = None      # Actual memory space for the buffer
-        self.srcPort = None     # Local RxP port, not UDP port
-        self.destPort = None     # Destination RxP Port, not UDP port
-        self.destAddr = None
+        self.srcPort = srcPort     # Local RxP port, not UDP port
+        self.desPort = None     # Destination RxP Port, not UDP port
+        self.desAddr = None
         self.srcAddr = "127.0.0.1"
         self.timeout = None
+        self.resetLimit = 50
 
         # Note on Sequence and Acknoledgment numbers: The sequence number should
         #  increase every time you SEND data, by the number of bytes. This should be
@@ -43,14 +44,7 @@ class RxPSocket:
         self.seqNum = 0
         self.ackNum = 0
 
-        # Que for data fragments
-        self.dataQ = deque()
-
-        # Que for packets waiting to be sent
-        self.packetQ = deque()
-
-        # Que for packets that have been sent but not acked
-        self.sentQ = deque()
+        
 
     def gettimeout(self):
         return self.socket.gettimeout()
@@ -134,5 +128,61 @@ class RxPSocket:
         self.destAddr = ip
         self.destDestPort = port
 
-        # Create an init packet and send it off to the host we wish to connect to.
-        rxpacket.getInit(locPort, destPort, seqNum, ackNum)
+        # Create an Init packet and send it off to the host we wish to connect to.
+        ack1 = self.__sendInit()
+        self.state = ConnectionStates.INIT_SENT
+        self.ackNum = ack1.header['seqNum'] + 1
+        
+        # Create a Cnct packet and send it off to the other host
+        ack2 = self.__sendCnct()
+        self.ackNum = ack2.header['seqNum'] + 1
+        
+    def __sendInit(self):
+    
+        #create packet
+        flags = (True, False, False, False)
+        initPacket = RxPacket.getInit(
+                    srcPort = self.srcPort,
+                    desPort = self.desPort,
+                    seqNum = self.seqNum,
+                    winSize = self.recvWindow,
+                    )
+        
+        #increment seq num
+        self.seqNum = self.seqNum + 20 #increment by number of bytes (20 byte header only)
+        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+            self.seqNum = 0
+        
+        #transfer packet
+        resetsRemaining = self.resetLimit
+        while resetsRemaining:
+            self.send(initPacket)
+            
+            try:
+                data = self.recv()
+                packet = self.__reconstructPacket(data)
+                if not ack:
+                    resetsRemaining -= 1
+                    continue
+            except socket.timeout:
+                resendsRemaining -= 1
+            else: 
+                if packet.isAck() and packet.header['ackNum'] == self.seqNum + 1:
+                    break
+                    
+        if not resetsRemaining:
+            raise Exception('socket timeout')
+            
+        return packet
+        
+    def __reconstructPacket(data):
+        packet = RxPacket.
+                
+        
+        
+        
+        
+        
+        
+        
+        
