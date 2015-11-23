@@ -1,4 +1,6 @@
-import rxpsocket
+DEBUG = True
+
+#import rxpsocket
 import socket
 import sys
 
@@ -24,41 +26,13 @@ def usage():
     print "FxA-Client Usage: \n"
     print "FxA-Client.py X A P\n"
     print "-----------------------------\n"
-    print "X: port number to which FxA client's UDP socket should bind "
+    print "X: port number to which FxA client's UDP socket should bind (even)"
     print "to. Should be one less than the server's port number.\n"
     print "A: the IP address of NetEmu\n"
     print "P: the UDP port number of NetEMU\n"
     print "Example:\n"
     print "FxA-Client.py 5001 127.0.0.1 5002"
     sys.exit(1)
-
-# ------------PROGRAM RUN LOOP-------------------- #
-print("\n")
-
-# First, make sure parameters are correctly used.
-validateSysArgs()
-
-# Global FTP ports.
-clientRxPPort = 21
-serverRxPPort = 22
-
-locPort = sys.argv[1]
-destPort = sys.argv[3]
-destIP = sys.argv[2]
-sock = rxpsocket()
-state = 'NotConnected'
-
-# Bind to local ip and port.
-try:
-    sock.bind(("127.0.0.1", locport))
-except:
-    print "ERROR: Could not bind to port " + locPort + " on localhost.\n"
-    sys.exit(1)
-
-while True:
-    runclient()
-
-# ------------END PROGRAM RUN LOOP-------------------- #
 
 # Validate commands given while running the program.
 def validCommand(command):
@@ -71,22 +45,18 @@ def validCommand(command):
     return False
 
 def connect():
-    # If socket isn't created yet, let's create it.
-    if sock is None:
-        # Creates a socket, passes supplied UPD port to bind to.
-        sock = rxpsocket(sys.argv[1])
-
     if state != 'NotConnected':
         sock.close()
 
     try:
-        sock.bind(rxpPort)
-        sock.connect(destIp, serverRxPPort)
+        sock.connect((destIp, serverRxPPort))
     except:
-        print "Could not bind or connect to the server. Something's wrong.\n"
+        print "Could not connect to the server. Something's wrong.\n"
     else:
         sock.state = 'Connected'
         print "Connected to server.\n"
+
+
 
 def get(filename):
     # Send request for file.
@@ -97,16 +67,16 @@ def get(filename):
 
     received = recv_msg(sock)
 
-    # We got some data back, yay!
+    # We got a message back, yay!
     if received != None:
         # Check for error message
         if received.decode('UTF-8').split(' ', 1)[0] == 'ERROR':
-            print "ERROR " + received.decode('UTF-8').split(' ', 1)[1] + "\n"
+            print received.decode('UTF-8')
         # Write file.
         else:
             f = open(filename, 'wb')
             f.write(msg)
-            f.clos()
+            f.close()
             print "File written!\n"
 
 
@@ -202,3 +172,34 @@ def runClient():
     else:
         print "That command is not recognized. Valid commands are: \n"
         print "connect, get [filename], post [filename], window [receiverWinSize], disconnect\n"
+
+
+# ------------PROGRAM RUN LOOP-------------------- #
+
+print("\n")
+
+# First, make sure parameters are correctly used.
+validateSysArgs()
+
+# Global RXP FTP ports.
+clientRxPPort = 21
+serverRxPPort = 22
+
+locPort = sys.argv[1]
+destPort = sys.argv[3]
+destIP = sys.argv[2]
+#sock = rxpsocket()
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+state = 'NotConnected'
+
+# Bind to local ip and port.
+try:
+    sock.bind(("127.0.0.1", clientRxPPort))
+except:
+    print "ERROR: Could not bind to port " + locPort + " on localhost.\n"
+    sys.exit(1)
+
+while True:
+    runClient()
+
+# ------------END PROGRAM RUN LOOP-------------------- #
