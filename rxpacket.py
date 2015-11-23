@@ -71,7 +71,7 @@ class RxPacket:
         else:
             self.header['winSize'] = winSize
 
-        self.data = data
+        self.data = bytearray(data)
 
         self.header['checksum'] = self.__computeChecksum()
 
