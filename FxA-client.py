@@ -1,8 +1,13 @@
 DEBUG = True
 
+def log(message):
+    if DEBUG:
+        print message
+
 #import rxpsocket
 import socket
 import sys
+import struct
 
 # Simple File Transfer Application
 # This is the client.
@@ -40,44 +45,59 @@ def validCommand(command):
     if theFirstWord in ['connect', 'disconnect']:
         return True
     elif theFirstWord in ['get', 'post', 'window']:
-        if len(command.split(' '), 1) == 2:
+        if len(command.split(' ', 1)) == 2:
             return True
     return False
 
+# Connect to the FXA server.
 def connect():
+    # Globals
+    global state
+
     if state != 'NotConnected':
+        log("Socket state is not 'NotConneted'. Closing for good practice.\n")
         sock.close()
 
     try:
-        sock.connect((destIp, serverRxPPort))
-    except:
+        log("Attempting to connect to server at IP:" + destIP + " and Port:" + str(serverRxPPort) + "...\n")
+        sock.connect((destIP, serverRxPPort))
+        state = "Connected"
+    except Exception as e:
+        log("Exception: " + str(e) + "...\n")
         print "Could not connect to the server. Something's wrong.\n"
     else:
-        sock.state = 'Connected'
+        state = 'Connected'
         print "Connected to server.\n"
-
-
 
 def get(filename):
     # Send request for file.
     # Get response from server.
     getRequest = "GET " + filename
 
+    log("Sending GET request for file " + filename + "...\n")
     send_msg(sock, getRequest)
 
+    log("Awaiting for server response...\n")
     received = recv_msg(sock)
+
 
     # We got a message back, yay!
     if received != None:
+        log("Received message from server. Decoding...\n")
         # Check for error message
         if received.decode('UTF-8').split(' ', 1)[0] == 'ERROR':
+            log("Server returned error...\n")
             print received.decode('UTF-8')
         # Write file.
         else:
+            log("Server returned file...\n")
             f = open(filename, 'wb')
-            f.write(msg)
+            log("Writing file " + filename + "...\n")
+            f.write(received)
             f.close()
             print "File written!\n"
+    elif received == None:
+        print "Received an empty message. Something's wrong."
 
 
 def put(filename):
@@ -153,19 +173,25 @@ def runClient():
 
     # Validate command.
     if validCommand(command):
+        log("Command validated...\n")
         # Get actual command.
         actualCommand = command.split(' ', 1)[0]
 
         # Call command handler.
         if actualCommand == 'connect':
+            log("Calling connect...\n")
             connect()
         elif actualCommand == 'get':
+            log("Calling get...\n")
             get(command.split(' ', 1)[1])
         elif actualCommand == 'put':
+            log("Calling put...\n")
             put(command.split(' ', 1)[1])
         elif actualCommand == 'window':
+            log("Calling window...\n")
             window(command.split(' ', 1)[1])
         elif actualCommand == 'disconnect':
+            log("CAlling disconnect...\n")
             disconnect()
 
     # Not a valid command.
@@ -179,26 +205,30 @@ def runClient():
 print("\n")
 
 # First, make sure parameters are correctly used.
+log("Validating arguments...\n")
 validateSysArgs()
 
 # Global RXP FTP ports.
-clientRxPPort = 21
-serverRxPPort = 22
+clientRxPPort = 6001
+serverRxPPort = 6002
 
 locPort = sys.argv[1]
 destPort = sys.argv[3]
 destIP = sys.argv[2]
 #sock = rxpsocket()
+log("Creating empty socket...\n")
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 state = 'NotConnected'
 
 # Bind to local ip and port.
 try:
+    log("Binding socket to 127.0.0.1 at port " + str(clientRxPPort) + "...\n")
     sock.bind(("127.0.0.1", clientRxPPort))
 except:
-    print "ERROR: Could not bind to port " + locPort + " on localhost.\n"
+    print "ERROR: Could not bind to port " + str(clientRxPPort) + " on localhost.\n"
     sys.exit(1)
 
+log("Entering run loop for first time...\n")
 while True:
     runClient()
 
