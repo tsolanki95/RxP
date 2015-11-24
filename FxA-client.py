@@ -143,13 +143,27 @@ def recv_msg(asocket):
     return recvall(asocket, msglen)
 
 def recvall(asocket, n):
+    log("Preparing to receive " + str(n) + " bytes...\n")
+
     # Helper function to recv n bytes or return None if EOF is hit
     data = ''
+    recvCallsMade = 0;
     while len(data) < n:
+        # Only show progress if we're downloading a file bigger than 200 bytes.
+        if n > 200:
+            # Show download progress.
+            sys.stdout.write('\r')
+            sys.stdout.write('>>>> Downloading file... ' + str(float(int(100 * (len(data) / float(n))))) + "% <<<<")
+            sys.stdout.flush()
         packet = asocket.recv(n - len(data))
         if not packet:
             return None
         data += packet
+        recvCallsMade += 1
+    sys.stdout.write('\r')
+    sys.stdout.write('>>>> Downloading file... 100% <<<<')
+    log("\n Calls to rcv() made: " + str(recvCallsMade) + "...\n")
+    print str(len(data)) + " bytes successuflly received.\n"
     return data
 
 
@@ -157,6 +171,9 @@ def window(size):
     print "This functionality isn't implemented yet.\n"
 
 def disconnect():
+    # Globals
+    global state
+
     if sock is None:
         print "You haven't connected to anything yet!\n"
     else:
@@ -191,7 +208,7 @@ def runClient():
             log("Calling window...\n")
             window(command.split(' ', 1)[1])
         elif actualCommand == 'disconnect':
-            log("CAlling disconnect...\n")
+            log("Calling disconnect...\n")
             disconnect()
 
     # Not a valid command.

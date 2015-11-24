@@ -83,7 +83,7 @@ def handleGet(filename):
         log("Attempting to open file " + filename + "...\n")
         with open(filename, "rb") as afile:
         # File is open. Send as bytestream.
-            log("File opened - now attempting to read it in.")
+            log("File opened - now attempting to read it in.\n")
             toSend = afile.read()
             bytesToSend = bytearray(toSend)
             log("File imported as byteArray...\n")
@@ -140,27 +140,35 @@ def runServer():
     # Once we're connected, wait for a GET or PUT request.
     log("Waiting for message from client...\n")
     message = recv_msg(sock)
-    log("Message received!...\n")
-    command = message.split(' ', 1)[0]
-    filename = message.split(' ', 1)[1]
-    log("Message command: " + command + "...\n")
-    log("Message filename: " +  filename + "...\n")
 
-    # If get, send to handler.
-    if command == 'GET':
-        log("Calling GET handler for file " + filename + "...\n")
-        handleGet(filename)
+    # We've got something from the recv call.
 
-    # IF put, send to handler.
-    elif command == 'PUT':
-        log("Calling PUT handler for file " + filanemae + "...\n")
-        handlePut(filename)
-
-    # Invalid command! Send error.
+    # Client closed connection.
+    if message is None:
+        log("Client terminated connection.")
+        state = 'NotConnected'
     else:
-        log("Invalid command received...\n")
-        print "Command that was not GET or PUT received. Exiting."
-        sys.exit(1)
+        log("Message received!...\n")
+        command = message.split(' ', 1)[0]
+        filename = message.split(' ', 1)[1]
+        log("Message command: " + command + "...\n")
+        log("Message filename: " +  filename + "...\n")
+
+        # If get, send to handler.
+        if command == 'GET':
+            log("Calling GET handler for file " + filename + "...\n")
+            handleGet(filename)
+
+            # IF put, send to handler.
+        elif command == 'PUT':
+            log("Calling PUT handler for file " + filanemae + "...\n")
+            handlePut(filename)
+
+            # Invalid command! Send error.
+        else:
+            log("Invalid command received...\n")
+            print "Command that was not GET or PUT received. Exiting."
+            sys.exit(1)
 
 # ------------PROGRAM RUN LOOP-------------------- #
 print("\n")
