@@ -43,8 +43,10 @@ def usage():
 def validCommand(command):
     theFirstWord = command.split(' ', 1)[0]
     if theFirstWord in ['connect', 'disconnect']:
+        log("Command is connect or disconnect...\n")
         return True
-    elif theFirstWord in ['get', 'post', 'window']:
+    elif theFirstWord in ['get', 'put', 'window']:
+        log("Command is get, put or window...\n")
         if len(command.split(' ', 1)) == 2:
             return True
     return False
@@ -102,24 +104,39 @@ def get(filename):
 
 def put(filename):
     # Puts file to server.
+    log("Sending put request to server.\n")
     sendRequest = "PUT " + filename
 
     send_msg(sock, sendRequest)
+    log("Put request sent...\n")
 
+    log("Awaiting response...\n")
     response = recv_msg(sock)
+    log("Received a message!\n")
 
     # Server is ready to receive file.
     if response.decode("UTF-8") == 'READY':
-        # Read file into bytearray
-        with open(filename, "rb") as theFile:
-            f = theFile.read()
-            fileBytes = bytearray(f)
+        log("Server says it's ready to receive our file...\n")
 
-        # Finally, send the message.
-        send_msg(sock, fileBytes)
+        try:
+            log("Attempting to open file " + filename + "...\n")
+            with open(filename, "rb") as afile:
+            # File is open. Send as bytestream.
+                log("File opened - now attempting to read it in.\n")
+                toSend = afile.read()
+                bytesToSend = bytearray(toSend)
+                log("File imported as byteArray...\n")
+                log("Sending file to server...\n")
+                send_msg(sock, bytesToSend)
+                print "File sent!"
+        except IOError as e:
+            # File does not exist. Send error message.
+            eMessage = "ERROR : File does not exist."
+            log("Exception: " + str(e) + "...\n")
 
-        # Make sure server got it.
+        # Make sure server got the file
         msg = recv_msg(sock)
+        log("Receiving response from server...\n")
 
         if msg.decode("UTF-8") == "OKAY":
             print "File transferred!"
