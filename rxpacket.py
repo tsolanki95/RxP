@@ -55,40 +55,50 @@ class RxPacket:
     # static methods
     @staticmethod
     def maxSeqNum():
+        log("Returning max sequence number...\n")
         return MAX_SEQUENCE_NUM
 
     @staticmethod
     def maxAckNum():
+        log("Returning max ack number...\n")
         return MAX_ACK_NUM
 
     @staticmethod
     def maxWinSize():
+        log("Returning max window size...\n")
         return MAX_WINDOW_SIZE
 
     @staticmethod
     def getHeaderLeangth():
+        log("Returning header length...\n")
         return HEADER_LENGTH
 
     @staticmethod
     def getDataLength():
+        log("Returning data length...\n")
         return DATA_LEN
 
     # Returns a simple INIT packet.
     @staticmethod
     def getInit(srcPort, desPort, seqNum, ackNum, winSize):
+        log("Returning an INIT packet...\n")
         return RxPacket(srcPort, desPort, seqNum, ackNum, (True, False, False, False), winSize)
 
     # Returns a simple CNCT packet.
     @staticmethod
     def getCnct(srcPort, desPort, seqNum, ackNum, winSize):
+        log("Returning a CNCT packet...\n")
         return RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False), winSize)
 
 
     # returns an RxPacket given a byteArray as an input
     @staticmethod
     def fromByteArray(byteArray):
+        log("Creating an empty RXPacket in fromByteArray...\n")
         p = RxPacket()
+        log("Unpicking byteArray to packet...\n")
         p.__unpickle(byteArray)
+        log("Returning unpickled packet...\n")
         return p
     # end static methods
 
