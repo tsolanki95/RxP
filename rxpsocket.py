@@ -173,7 +173,7 @@ class RxPSocket:
     # Once connection is estabilshed, sets up memory and window.
     def connect(self, (ip, port)):
         if port == None:
-            self.log("socket not bound\n")
+            self.log("Socket not bound\n")
             raise Exception("Socket not bound")
             sys.exit(1)
 
@@ -181,15 +181,15 @@ class RxPSocket:
         self.desRxPPort = port
 
         try:
-            self.log("sending INIT packet....\n")
+            self.log("Sending INIT packet....\n")
             # Create an Init packet and send it off to the host we wish to connect to.
             ack1 = self.__sendInit()
 
             # Create a Cnct packet and send it off to the other host
-            self.log("sending CNCT packet...\n")
+            self.log("Sending CNCT packet...\n")
             ack2 = self.__sendCnct()
         except Exception:
-            self.log("could not connect...\n")
+            self.log("Sould not connect...\n")
             raise Exception("Could not connect")
         else:
             self.log("Connection established\n")
