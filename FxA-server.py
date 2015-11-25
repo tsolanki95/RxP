@@ -5,9 +5,10 @@ def log(message):
         print message
 
 #import rxpsocket
-import socket
+import rxpsocket
 import sys
 import struct
+import socket
 
 # Simple File Transfer Application
 # This is the client.
@@ -16,6 +17,7 @@ import struct
 def validateSysArgs():
     # Check number of arguments
     if len(sys.argv) != 4:
+        log("Arguement list != 4, listing usage...\n")
         usage()
 
     # Check arguments.
@@ -24,6 +26,7 @@ def validateSysArgs():
         int(sys.argv[3])
         socket.inet_aton(sys.argv[2])
     except:
+        log("Couldn't confirm that the argumenmts are in the correct format...\n")
         usage()
 
 # Simple function to print usage and exit.
@@ -153,7 +156,7 @@ def runServer():
             log("Setting state to connected.\n")
             state = "Connected"
         except Exception as e:
-            log("Connection Failed")
+            log("Connection Failed: " + str(e))
             return
 
     # Once we're connected, wait for a GET or PUT request.
@@ -200,20 +203,25 @@ validateSysArgs()
 clientRxPPort = 6001
 serverRxPPort = 6002
 
-locPort = sys.argv[1]
-destPort = sys.argv[3]
+loclUDPPort = sys.argv[1]
+destUDPPort = sys.argv[3]
 destIP = sys.argv[2]
 #sock = rxpsocket()
 log("Creating empty socket...\n")
-sock = rxpsocket.RxPSocket()
+sock = rxpsocket.RxPSocket(serverRxPPort)
 state = 'NotConnected'
 
 # Bind to local ip and port.
 try:
-    log("Binding socket to 127.0.0.1 at port " + str(locPort) + "...\n")
-    sock.bind(locPort)
-except:
-    print "ERROR: Could not bind to port " + str(locPort) + " on localhost.\n"
+    log("Binding socket to 127.0.0.1 at port " + str(locUDPPort) + "...\n")
+    log("Also settings UDP ports on socket...\n")
+    sock.bind(locUDPPort)
+    sock.UDPbind(localUDPPort)
+    sock.desUDPPort(destUDPPort)
+    log("UDP src and des ports set; RxP src port bound...\n")
+except Exception as e:
+    print "ERROR: Could not bind to port " + str(locUDPPort) + " on localhost.\n"
+    log(str(e))
     sys.exit(1)
 
 log("Entering run loop for first time...\n")

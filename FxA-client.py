@@ -57,10 +57,6 @@ def connect():
     global state
     global sock
 
-    # IF we called disconnect earlier, we gotta create a new sock.
-    if sock is None:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     if state != 'NotConnected':
         log("Socket state is not 'NotConneted'. Closing for good practice.\n")
         sock.close()
