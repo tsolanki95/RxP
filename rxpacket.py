@@ -7,15 +7,25 @@ fields:
     header: dictionary storing all header values
     data: holds the data sent in this packet
 '''
-import math
+import ctypes
+import sys
+import socket 
+import math 
+import struct
+import random
+from functools import reduce
 
 class RxPacket:
+
+    uint16 = ctypes.c_uint16
+    uint32 = ctypes.c_uint32
 
     # based on bit count for each value
     MAX_SEQUENCE_NUM = math.pow(2, 32) - 1
     MAX_ACK_NUM = math.pow(2, 32) - 1
     MAX_WINDOW_SIZE = math.pow(2, 16) - 1
     HEADER_LENGTH = 20 # number of bytes in header
+    DATA_LEN = 1004
 
     HEADER_FIELDS = (
                     ('srcPort', uint16, 2),
@@ -96,6 +106,9 @@ class RxPacket:
 
     def isFin(self):
         return header['flags'][3]
+        
+    def isEndOfMessage(self):
+        return header['flags'][5]
 
     # Return a byte array of packets to use when sending via UDP.
     # flagList should be a 4-length array of booleans corresponding to
@@ -163,6 +176,8 @@ class RxPacket:
         isCnct = (((value & 0x2) >> 1) == 1)
         isAck = (((value & 0x4) >> 2) == 1)
         isFin = (((value & 0x8) >> 3) == 1)
+        isNM = (((value & 0x16) >> 4) == 1)
+        isEOM = (((value & 0x32) >> 5) == 1)
         return (isInit, isCnct, isAck, isFin)
 
     #converts the header to a length 20 bytearray
@@ -191,6 +206,10 @@ class RxPacket:
             value = value | (0x1 << 2)
         if flags[3] == True:
             value = value | (0x1 << 3)
+        if flags[4] == True:
+            value = value | (0x1 << 4)
+        if flags[5] == True:
+            value = value | (0x1 << 5)
         return bytearray(uint32(value))
 
     #end instance methods

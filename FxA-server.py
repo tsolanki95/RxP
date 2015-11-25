@@ -147,17 +147,14 @@ def runServer():
     # If socket isn't listening, listen!
     log("State is currently " + state + "...\n")
     if not (state == "Listening" or state == "Connected"):
-        log("Attempting to listen...\n")
-        sock.listen(1)
-        log("Setting state to listening.\n")
-        state = "Listening"
-
-    # Only accept new connections if we aren't connected
-    if not state == "Connected":
-        log("Now accepting incoming connections...\n")
-        sock, addr = sock.accept()
-        state = "Connected"
-        log("Connected with client at " + str(addr) + "...\n")
+        try:
+            log("Attempting to listen...\n")
+            sock.listen()
+            log("Setting state to connected.\n")
+            state = "Connected"
+        except Exception as e:
+            log("Connection Failed")
+            return
 
     # Once we're connected, wait for a GET or PUT request.
     log("Waiting for message from client...\n")
@@ -208,15 +205,15 @@ destPort = sys.argv[3]
 destIP = sys.argv[2]
 #sock = rxpsocket()
 log("Creating empty socket...\n")
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock = rxpsocket.RxPSocket()
 state = 'NotConnected'
 
 # Bind to local ip and port.
 try:
-    log("Binding socket to 127.0.0.1 at port " + str(serverRxPPort) + "...\n")
-    sock.bind(("127.0.0.1", serverRxPPort))
+    log("Binding socket to 127.0.0.1 at port " + str(locPort) + "...\n")
+    sock.bind(locPort)
 except:
-    print "ERROR: Could not bind to port " + str(serverRxPPort) + " on localhost.\n"
+    print "ERROR: Could not bind to port " + str(locPort) + " on localhost.\n"
     sys.exit(1)
 
 log("Entering run loop for first time...\n")
