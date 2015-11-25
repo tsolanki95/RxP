@@ -156,9 +156,13 @@ class RxPacket:
     # Data should be a byte array of data.
     def toByteArray(self):
         packet = bytearray()
+        log("Pickling header.....\n")
         packet.extend(self.__pickleHeader())
+        log("Done pickling header.....\n")
         if self.data:
+            log("adding data.....\n")
             packet.extend(self.data)
+            log("done adding data.....\n")
         return packet
 
     #end instance methods
@@ -228,9 +232,11 @@ class RxPacket:
         byteArray = bytearray()
 
         for (fieldName, dataType, size) in HEADER_FIELDS:
+            log("pickling header field " + fieldName + "....\n")
             value = self.header[fieldName]
 
             if (fieldName != 'flags'):
+                log("pickling flags")
                 byteArray.extend(bytearray(dataType(value)))
             else:
                 byteArray.extend(self.__pickleFlags())
