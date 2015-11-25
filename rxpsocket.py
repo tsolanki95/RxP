@@ -372,12 +372,14 @@ class RxPSocket:
         return message
 
     def sendto(self, data, address):
+        self.log("sending packet to " + address + "\n")
         self.socket.sendto(data, address)
 
     def recvfrom(self, recvWindow):
         while True:
             try:
                 packet = self.socket.recvfrom(recvWindow)
+                self.log("recieving message from " + packet[1] + "\n")
             except socket.error as error:
                 if error.errno is 35:
                     continue
