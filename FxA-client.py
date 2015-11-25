@@ -62,7 +62,8 @@ def connect():
 
     try:
         log("Attempting to connect to server at IP:" + destIP + " and Port:" + str(serverRxPPort) + "...\n")
-        sock.connect((destIP, serverRxPPort))
+        sock.connect((destIP, destPort))
+        sock.bind(bindPort)
         state = "Connected"
     except Exception as e:
         log("Exception: " + str(e) + "...\n")
@@ -246,18 +247,21 @@ validateSysArgs()
 clientRxPPort = 6001
 serverRxPPort = 6002
 
+destPort = RxPSocket.NetEmuPort
+
 locPort = sys.argv[1]
-destPort = sys.argv[3]
+bindPort = sys.argv[3]
+destIP = sys.argv[2]
 destIP = sys.argv[2]
 #sock = rxpsocket()
 log("Creating empty socket...\n")
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock = rxpsocket.RxPsocket()
 state = 'NotConnected'
 
 # Bind to local ip and port.
 try:
     log("Binding socket to 127.0.0.1 at port " + str(clientRxPPort) + "...\n")
-    sock.bind(("127.0.0.1", clientRxPPort))
+    sock.bind(bindPort)
 except:
     print "ERROR: Could not bind to port " + str(clientRxPPort) + " on localhost.\n"
     sys.exit(1)

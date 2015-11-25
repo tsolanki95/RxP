@@ -7,11 +7,8 @@ class RxPSocket:
         if DEBUG:
             print message
 
-    # Class-wide list of current RxP ports in use.
-    portsInUse = []
-
-    # Class-wide port to use when sending UDP messages.
-    UDPport = 65
+    # Class-wide port to use for NetEmu
+    NetEmuPort = 5000
 
     # Enum to store possible connection states.
     # Global.
@@ -21,7 +18,7 @@ class RxPSocket:
 
 
     # Initliazation of class vars. Local to current instantiated class.
-    def __init__(self, srcPort, debug = False):
+    def __init__(self, srcPort, debug = True):
         self.state = ConnectionStates.CLOSED
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rcvWindowSize = RxPacket.MAX_WINDOW_SIZE  # Receive Window size in bytes
@@ -30,6 +27,7 @@ class RxPSocket:
         self.srcPort = srcPort     # Local RxP port, not UDP port
         self.desPort = None     # Destination RxP Port, not UDP port
         self.desAddr = None
+        self.bindPort = None
         self.srcAddr = "127.0.0.1"
         self.timeout = None
         self.resetLimit = 50
@@ -60,9 +58,8 @@ class RxPSocket:
     def bind(self, aPort):
         try:
             if aPort:
-                self.socket.bind(srcAddr,aPort)
-                self.port = aPort
-                portsInUse.append(port)
+                self.socket.bind((self.srcAddr,self.aPort))
+                self.bindPort = aPort
         except:
             print("The socket could not be bound to " + aPort + ".")
 
@@ -157,10 +154,11 @@ class RxPSocket:
         
         self.state = ConnectionStates.ESTABLISHED
         
+        
     # Connects to the specified host on the specified port.
     # Uses the RxP handshake as described in the RxP state diagram.
     # Once connection is estabilshed, sets up memory and window.
-    def connect(self, ip, port):
+    def connect(self, (ip, port)):
         if port == None:
             raise Exception("Socket not bound")
             sys.exit(1)
@@ -353,6 +351,7 @@ class RxPSocket:
         if not resetsLeft:
             raise Exception('socket timeout')
         
+        
         return message
         
     def sendto(self, data, address):
@@ -372,10 +371,13 @@ class RxPSocket:
         
     def close(self):
         if self.srcPort is None:
-            self.log("Socket already closed")
+            self.socket.close()
+            raise RxPException("Socket not bound")
+            
         
         if self.state != ConnectionStates.ESTABLISHED:
-            self.log("Socket already closed")
+            self.socket.close()
+            raise Exception("Connection not established")
             
         fin_flags = (False, False, False, True, False, False)
         finPacket = RxPacket(
@@ -426,13 +428,17 @@ class RxPSocket:
                     self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
                     waitingForHostB = False
             
+        self.socket.close()
         self = RxSocket(self.srcPort, self.debug)
             
     def __closePassive(self, ackPacket):
         if self.srcPort is None:
+            self.socket.close()
             raise RxPException("Socket not bound")
+            
         
         if self.state != ConnectionStates.ESTABLISHED:
+            self.socket.close()
             raise Exception("Connection not established")
             
         fin_flags = (False, False, False, True, False, False)
@@ -481,7 +487,8 @@ class RxPSocket:
                                 )
                                 
                     self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
-                    
+        
+        self.socket.close()
         self = RxSocket(self.srcPort, self.debug)
         
         
