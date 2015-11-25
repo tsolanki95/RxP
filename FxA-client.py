@@ -55,6 +55,11 @@ def validCommand(command):
 def connect():
     # Globals
     global state
+    global sock
+
+    # IF we called disconnect earlier, we gotta create a new sock.
+    if sock is None:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     if state != 'NotConnected':
         log("Socket state is not 'NotConneted'. Closing for good practice.\n")
@@ -197,6 +202,8 @@ def disconnect():
         if state == 'NotConnected':
             print "Socket is already disconnected.\n"
         elif state == 'Connected':
+            # Tell server we're about to disconnect.
+            send_msg("DISCONNECTING")
             sock.close()
             state = 'NotConnected'
 
@@ -216,11 +223,18 @@ def runClient():
             log("Calling connect...\n")
             connect()
         elif actualCommand == 'get':
-            log("Calling get...\n")
-            get(command.split(' ', 1)[1])
+            # Make sure we're connected first!
+            if state == 'NotConnected':
+                print "You're not connected to the server!\n"
+            else:
+                log("Calling get...\n")
+                get(command.split(' ', 1)[1])
         elif actualCommand == 'put':
-            log("Calling put...\n")
-            put(command.split(' ', 1)[1])
+            if state == 'NotConnected':
+                print "You're not connected to the server!\n"
+            else:
+                log("Calling put...\n")
+                put(command.split(' ', 1)[1])
         elif actualCommand == 'window':
             log("Calling window...\n")
             window(command.split(' ', 1)[1])
