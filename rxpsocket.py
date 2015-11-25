@@ -578,7 +578,7 @@ class RxPSocket:
         if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
             self.seqNum = 0
 
-            
+
         #transfer packet
         resetsLeft = self.resetLimit
         self.log("entering send loop for INIT packet....../n")
