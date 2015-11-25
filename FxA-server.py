@@ -217,8 +217,8 @@ state = 'NotConnected'
 
 # Bind to local RxP ip and port.
 try:
-    log("Binding client RXPport: " + str(serverRxPPort))
-    sock.bind(clientRxPPort)
+    log("Binding server RXPport: " + str(serverRxPPort))
+    sock.bind(serverRxPPort)
     log("Binding UDP src port: " + str(locUDPPort))
     sock.UDPbind(locUDPPort)
     log("Binding UDP des port: " + str(destUDPPort))

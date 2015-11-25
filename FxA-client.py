@@ -64,7 +64,7 @@ def connect():
 
     try:
         log("Attempting to connect to server at IP:" + destIP + " and Port:" + str(serverRxPPort) + "...\n")
-        sock.connect((destIP, destPort))
+        sock.connect((destIP, serverRxPPort))
         state = "Connected"
     except Exception as e:
         log("Exception: " + str(e) + "...\n")
