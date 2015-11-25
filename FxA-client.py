@@ -8,6 +8,7 @@ def log(message):
 import socket
 import sys
 import struct
+import rxpsocket
 
 # Simple File Transfer Application
 # This is the client.
@@ -64,7 +65,6 @@ def connect():
     try:
         log("Attempting to connect to server at IP:" + destIP + " and Port:" + str(serverRxPPort) + "...\n")
         sock.connect((destIP, destPort))
-        sock.bind(bindPort)
         state = "Connected"
     except Exception as e:
         log("Exception: " + str(e) + "...\n")
@@ -246,7 +246,6 @@ def runClient():
 
 
 # ------------PROGRAM RUN LOOP-------------------- #
-
 print("\n")
 
 # First, make sure parameters are correctly used.
@@ -257,23 +256,26 @@ validateSysArgs()
 clientRxPPort = 6001
 serverRxPPort = 6002
 
-destPort = RxPSocket.NetEmuPort
+locUDPPort = sys.argv[1]
+destUDPPort = sys.argv[3]
+destIP = sys.argv[2]
 
-locPort = sys.argv[1]
-bindPort = sys.argv[3]
-destIP = sys.argv[2]
-destIP = sys.argv[2]
-#sock = rxpsocket()
 log("Creating empty socket...\n")
-sock = rxpsocket.RxPsocket()
+sock = rxpsocket.RxPSocket(clientRxPPort)
 state = 'NotConnected'
 
-# Bind to local ip and port.
+# Bind to local RxP ip and port.
 try:
-    log("Binding socket to 127.0.0.1 at port " + str(clientRxPPort) + "...\n")
-    sock.bind(bindPort)
-except:
-    print "ERROR: Could not bind to port " + str(clientRxPPort) + " on localhost.\n"
+    log("Binding client RXPport: " + str(clientRxPPort))
+    sock.bind(clientRxPPort)
+    log("Binding UDP src port: " + str(locUDPPort))
+    sock.UDPbind(locUDPPort)
+    log("Binding UDP des port: " + str(destUDPPort))
+    sock.UDPdesSet(destUDPPort)
+    log("UDP src and des ports set; RxP src port bound...\n")
+except Exception as e:
+    print "ERROR: Could not bind to port " + str(locUDPPort) + " on localhost.\n"
+    log("Exception: " + str(e))
     sys.exit(1)
 
 log("Entering run loop for first time...\n")

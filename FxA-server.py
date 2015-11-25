@@ -210,14 +210,14 @@ serverRxPPort = 6002
 locUDPPort = sys.argv[1]
 destUDPPort = sys.argv[3]
 destIP = sys.argv[2]
-#sock = rxpsocket()
+
 log("Creating empty socket...\n")
 sock = rxpsocket.RxPSocket(serverRxPPort)
 state = 'NotConnected'
 
 # Bind to local RxP ip and port.
 try:
-    log("Binding client RXPport: " + str(clientRxPPort))
+    log("Binding client RXPport: " + str(serverRxPPort))
     sock.bind(clientRxPPort)
     log("Binding UDP src port: " + str(locUDPPort))
     sock.UDPbind(locUDPPort)

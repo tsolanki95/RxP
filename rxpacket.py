@@ -9,8 +9,8 @@ fields:
 '''
 import ctypes
 import sys
-import socket 
-import math 
+import socket
+import math
 import struct
 import random
 from functools import reduce
@@ -21,9 +21,9 @@ class RxPacket:
     uint32 = ctypes.c_uint32
 
     # based on bit count for each value
-    MAX_SEQUENCE_NUM = math.pow(2, 32) - 1
-    MAX_ACK_NUM = math.pow(2, 32) - 1
-    MAX_WINDOW_SIZE = math.pow(2, 16) - 1
+    MAX_SEQUENCE_NUM = int(math.pow(2, 32) - 1)
+    MAX_ACK_NUM = int(math.pow(2, 32) - 1)
+    MAX_WINDOW_SIZE = int(math.pow(2, 16) - 1)
     HEADER_LENGTH = 20 # number of bytes in header
     DATA_LEN = 1004
 
@@ -106,7 +106,7 @@ class RxPacket:
 
     def isFin(self):
         return header['flags'][3]
-        
+
     def isEndOfMessage(self):
         return header['flags'][5]
 
@@ -144,7 +144,7 @@ class RxPacket:
         if byteArray:
             headerBytes = byteArray[0 : HEADER_LENGTH]
             self.__unpickleHeader(headerBytes)
-            
+
             if (len(byteArray) != HEADER_LENGTH):
                 dataBytes = byteArray[HEADER_LENGTH : ]
             else:

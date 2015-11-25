@@ -79,12 +79,16 @@ class RxPSocket:
         self.state = 'LISTENING'
 
         waitLimit = self.resetLimit * 100
+
+        self.log("Waiting for init packet...\n")
         while waitLimit:
 
             #receive INIT
             try:
-                bytes, address = self.recvfrom(self.rcvWindowSize)
-                packet = self.__reconstructPacket(data = bytearray(bytes))
+                self.log("Calling recvfrom to see if we have anything...\n")
+                theBytes, address = self.recvfrom(self.rcvWindowSize)
+                self.log("Recvfrom called....\n")
+                packet = self.__reconstructPacket(data = bytearray(theBytes))
 
                 if packet is None:
                     waitLimit -= 1
@@ -102,6 +106,7 @@ class RxPSocket:
 
 
         if not waitLimit:
+            log("Socket timed out!\n")
             raise Exception('socket timeout')
 
         self.ackNum = packet.header['seqNum'] + 1
