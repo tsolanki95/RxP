@@ -106,6 +106,9 @@ class RxPacket:
 
     def isFin(self):
         return header['flags'][3]
+        
+    def isEndOfMessage(self):
+        return header['flags'][5]
 
     # Return a byte array of packets to use when sending via UDP.
     # flagList should be a 4-length array of booleans corresponding to

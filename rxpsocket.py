@@ -1,6 +1,5 @@
 import socket
 import rxpacket
-from enum import Enum
 
 class RxPSocket:
 
@@ -16,7 +15,7 @@ class RxPSocket:
 
     # Enum to store possible connection states.
     # Global.
-    class ConnectionStates(Enum):
+    class ConnectionStates():
         CLOSED = 1
         ESTABLISHED = 2
 
@@ -197,10 +196,10 @@ class RxPSocket:
             
         #fragment data and add it to data queue
         for i in range(stop = len(msg), step = RxPacket.DATA_LEN):
-            if (i + RxPacket.DATA_LEN > len(msg):
+            if (i + RxPacket.DATA_LEN > len(msg)):
                 dataQueue.append(bytearray(msg[i : ]))
             else:
-                dataQueue.append(bytearray(msg[i : i + RxPacket.DATA_LEN]
+                dataQueue.append(bytearray(msg[i : i + RxPacket.DATA_LEN]))
                 
         #construct packet queue from data queue
         for data in dataQueue:
@@ -279,9 +278,9 @@ class RxPSocket:
                     
                     resetsLeft = self.resetLimit
 
-					sentQueue.reverse()
-					packetQueue.extendleft(sentQueue)
-					sentQueue.clear()
+                    sentQueue.reverse()
+                    packetQueue.extendleft(sentQueue)
+                    sentQueue.clear()
                 elif packet.isAck():
                     self.seqNum = packet.header['ackNum']
                     resetsLeft = self.resetLimit
@@ -315,7 +314,7 @@ class RxPSocket:
                 continue
                 
             else:
-                self.ackNum = packet.
+                self.ackNum = packet.header['seqNum'] + 1
                 if self.ackNum > RxPacket.MAX_ACK_NUM:
                     self.ackNum = 0
                 message += packet.data
