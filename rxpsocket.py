@@ -126,7 +126,7 @@ class RxPSocket:
                             flagList = flags,
                             winSize = self.recvWindow,
                             )
-                self.sendto(initPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
 
                 data, address = bytearray(self.recvfrom(self.rcvWindowSize))
@@ -158,9 +158,9 @@ class RxPSocket:
                     flagList = flags,
                     winSize = self.recvWindow,
                     )
-        self.sendto(initPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+        self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
-        self.state = ConnectionStates.ESTABLISHED
+        self.state = 'ESTABLISHED'
 
 
     # Connects to the specified host on the specified port.
@@ -238,7 +238,7 @@ class RxPSocket:
             window = self.sendWindowSize
             while window and packetQueue:
                 packetToSend = packetQueue.popLeft()
-                self.sendto(packet.toByteArray(), (self.desAddr, self.desRxPPort))
+                self.sendto(packet.toByteArray(), (self.desAddr, self.desUDPPort))
                 lastSeqNum = packet.header['seqNum']
 
                 window -= 1
@@ -280,7 +280,7 @@ class RxPSocket:
                                 flagList = flags,
                                 winSize = self.recvWindow,
                                 )
-                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
                     resetsLeft = self.resetLimit
 
@@ -334,7 +334,7 @@ class RxPSocket:
                             flagList = flags,
                             winSize = self.recvWindow,
                             )
-                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
                 if (packet.isEndOfMessage()):
                     break
@@ -349,7 +349,7 @@ class RxPSocket:
                                 flagList = flags,
                                 winSize = self.recvWindow,
                                 )
-                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                     self.__closePassive(ackPacket)
                     break
 
@@ -407,7 +407,7 @@ class RxPSocket:
         isFinAcked = False
 
         while resetsLeft and (not isFinAcked or waitingForHostB):
-            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
                 data, address = self.recvfrom(self.recvWindow)
@@ -433,11 +433,12 @@ class RxPSocket:
                                 winSize = self.recvWindow,
                                 )
 
-                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                     waitingForHostB = False
 
         self.socket.close()
         self = RxSocket(self.srcRxPPort, self.debug)
+        self.state = 'CLOSED'
 
     def __closePassive(self, ackPacket):
         if self.srcRxPPort is None:
@@ -468,7 +469,7 @@ class RxPSocket:
         isFinAcked = False
 
         while resetsLeft and (not isFinAcked):
-            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
                 data, address = self.recvfrom(self.recvWindow)
@@ -494,10 +495,11 @@ class RxPSocket:
                                 winSize = self.recvWindow,
                                 )
 
-                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
         self.socket.close()
         self = RxSocket(self.srcRxPPort, self.debug)
+        self.state = 'CLOSED'
 
 
     def __sendInit(self):
@@ -519,7 +521,7 @@ class RxPSocket:
         #transfer packet
         resetsLeft = self.resetLimit
         while resetsLeft:
-            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
                 data, address = bytearray(self.recvfrom(self.rcvWindowSize))
@@ -560,7 +562,7 @@ class RxPSocket:
         #transfer packet
         resetsLeft = self.resetLimit
         while resetsLeft:
-            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desRxPPort))
+            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
                 data, address = self.recvfrom(self.rcvWindowSize)
