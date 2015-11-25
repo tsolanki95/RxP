@@ -1,4 +1,5 @@
 import socket
+import rxpacket
 from rxpacket import RxPacket
 
 class RxPSocket:
@@ -14,7 +15,7 @@ class RxPSocket:
     def __init__(self, srcRxPPort, debug = True):
         self.state = 'CLOSED'
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.rcvWindowSize = RxPacket.MAX_WINDOW_SIZE  # Receive Window size in bytes
+        self.recvWindowSize = RxPacket.maxWinSize()  # Receive Window size in bytes
         self.sendWindowSize = 1 # Send window size in bytes
         self.buffer = None      # Actual memory space for the buffer
         self.srcRxPPort = srcRxPPort  # Local RxP port, not UDP port
@@ -129,7 +130,7 @@ class RxPSocket:
                             seqNum = self.seqNum,
                             ackNum = self.ackNum,
                             flagList = flags,
-                            winSize = self.recvWindow,
+                            winSize = self.recvWindowSize,
                             )
                 self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
@@ -161,7 +162,7 @@ class RxPSocket:
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = flags,
-                    winSize = self.recvWindow,
+                    winSize = self.recvWindowSize,
                     )
         self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
@@ -187,9 +188,9 @@ class RxPSocket:
 
             # Create a Cnct packet and send it off to the other host
             self.log("Sending CNCT packet...\n")
-            ack2 = self.__sendCnct()
+            ack2 = __sendCnct()
         except Exception:
-            self.log("Sould not connect...\n")
+            self.log("Could not connect...\n")
             raise Exception("Could not connect")
         else:
             self.log("Connection established\n")
@@ -210,11 +211,11 @@ class RxPSocket:
         lastSeqNum = self.seqNum
 
         #fragment data and add it to data queue
-        for i in range(stop = len(msg), step = RxPacket.DATA_LEN):
-            if (i + RxPacket.DATA_LEN > len(msg)):
+        for i in range(stop = len(msg), step = RxPacket.getDataLength()):
+            if (i + RxPacket.getDataLength() > len(msg)):
                 dataQueue.append(bytearray(msg[i : ]))
             else:
-                dataQueue.append(bytearray(msg[i : i + RxPacket.DATA_LEN]))
+                dataQueue.append(bytearray(msg[i : i + RxPacket.getDataLength()]))
 
         #construct packet queue from data queue
         for data in dataQueue:
@@ -231,12 +232,12 @@ class RxPSocket:
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = flags,
-                    winSize = self.recvWindow,
+                    winSize = self.recvWindowSize,
                     data = data
                     )
 
             self.seqNum += 1
-            if self.seqNum >= RxPacket.MAX_SEQUENCE_NUM:
+            if self.seqNum >= RxPacket.maxSeqNum():
                 self.seqNum = 0
 
             packetQueue.append(packet)
@@ -287,7 +288,7 @@ class RxPSocket:
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = flags,
-                                winSize = self.recvWindow,
+                                winSize = self.recvWindowSize,
                                 )
                     self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
@@ -330,7 +331,7 @@ class RxPSocket:
 
             else:
                 self.ackNum = packet.header['seqNum'] + 1
-                if self.ackNum > RxPacket.MAX_ACK_NUM:
+                if self.ackNum > RxPacket.maxAckNum():
                     self.ackNum = 0
                 message += packet.data
 
@@ -341,7 +342,7 @@ class RxPSocket:
                             seqNum = self.seqNum,
                             ackNum = self.ackNum,
                             flagList = flags,
-                            winSize = self.recvWindow,
+                            winSize = self.recvWindowSize,
                             )
                 self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
@@ -356,7 +357,7 @@ class RxPSocket:
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = flags,
-                                winSize = self.recvWindow,
+                                winSize = self.recvWindowSize,
                                 )
                     self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                     self.__closePassive(ackPacket)
@@ -366,20 +367,20 @@ class RxPSocket:
 
 
         if not resetsLeft:
-            raise Exception('socket timeout')
+            raise Exception('Socket timeout')
 
 
         return message
 
     def sendto(self, data, address):
-        self.log("sending packet to " + address + "\n")
+        self.log("Sending packet to " + str(address) + "\n")
         self.socket.sendto(data, address)
 
     def recvfrom(self, recvWindow):
         while True:
             try:
                 packet = self.socket.recvfrom(recvWindow)
-                self.log("recieving message from " + packet[1] + "\n")
+                self.log("Recieving message from " + str(packet[1]) + "\n")
             except socket.error as error:
                 if error.errno is 35:
                     continue
@@ -405,11 +406,11 @@ class RxPSocket:
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = fin_flags,
-                    winSize = self.recvWindow,
+                    winSize = self.recvWindowSize,
                     )
 
         self.seqNum += 1
-        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+        if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
         resetsLeft = self.resetLimit()
@@ -421,7 +422,7 @@ class RxPSocket:
             self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
-                data, address = self.recvfrom(self.recvWindow)
+                data, address = self.recvfrom(self.recvWindowSize)
                 packet = self.__reconstructPacket(data)
 
                 if not packet:
@@ -441,7 +442,7 @@ class RxPSocket:
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = fin_flags,
-                                winSize = self.recvWindow,
+                                winSize = self.recvWindowSize,
                                 )
 
                     self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
@@ -468,11 +469,11 @@ class RxPSocket:
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = fin_flags,
-                    winSize = self.recvWindow,
+                    winSize = self.recvWindowSize,
                     )
 
         self.seqNum += 1
-        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+        if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
         resetsLeft = self.resetLimit()
@@ -483,7 +484,7 @@ class RxPSocket:
             self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
             try:
-                data, address = self.recvfrom(self.recvWindow)
+                data, address = self.recvfrom(self.recvWindowSize)
                 packet = self.__reconstructPacket(data)
 
                 if not packet:
@@ -503,7 +504,7 @@ class RxPSocket:
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = fin_flags,
-                                winSize = self.recvWindow,
+                                winSize = self.recvWindowSize,
                                 )
 
                     self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
@@ -517,18 +518,31 @@ class RxPSocket:
 
         #create packet
         self.log("Creating init packet......\n")
-        flags = (True, False, False, False, False, False)
-        initPacket = RxPacket.getInit(
-                    srcPort = self.srcRxPPort,
-                    desPort = self.desRxPPort,
-                    seqNum = self.seqNum,
-                    winSize = self.recvWindow,
-                    )
+
+        try:
+            self.log("Setting flags...\n")
+            flags = (True, False, False, False, False, False)
+        except Exception as e:
+            self.log("Exception: " + str(e))
+            sys.exit(0)
+        self.log("Flags created...\n")
+
+        try:
+            initPacket = RxPacket.getInit(
+                        srcPort = self.srcRxPPort,
+                        desPort = self.desRxPPort,
+                        seqNum = self.seqNum,
+                        ackNum = self.ackNum,
+                        winSize = self.recvWindowSize,
+                        )
+        except Exception as e:
+            self.log("Exception: " + str(e))
+            sys.exit(0)
 
         #increment seq num
-        self.log("incrementing sequence number......\n")
+        self.log("Incrementing sequence number......\n")
         self.seqNum = self.seqNum + 1 #increment by number of bytes (20 byte header only)
-        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+        if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
         #transfer packet
@@ -572,12 +586,12 @@ class RxPSocket:
                     srcPort = self.srcRxPPort,
                     desPort = self.desRxPPort,
                     seqNum = self.seqNum,
-                    winSize = self.recvWindow,
+                    winSize = self.recvWindowSize,
                     )
 
         #increment seq num
         self.seqNum = self.seqNum + 1 #increment by number of bytes (20 byte header only)
-        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+        if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
 

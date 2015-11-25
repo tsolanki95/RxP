@@ -15,10 +15,25 @@ import struct
 import random
 from functools import reduce
 
+DEBUG = True
+
+def log(message):
+    if DEBUG:
+        print message
+
 class RxPacket:
 
     uint16 = ctypes.c_uint16
     uint32 = ctypes.c_uint32
+
+    # Global decs
+    global MAX_SEQUENCE_NUM
+    global MAX_ACK_NUM
+    global MAX_WINDOW_SIZE
+    global HEADER_LENGTH
+    global DATA_LEN
+    global HEADER_FIELDS
+
 
     # based on bit count for each value
     MAX_SEQUENCE_NUM = int(math.pow(2, 32) - 1)
@@ -38,25 +53,48 @@ class RxPacket:
                     )
 
     # static methods
+    @staticmethod
+    def maxSeqNum():
+        return MAX_SEQUENCE_NUM
+
+    @staticmethod
+    def maxAckNum():
+        return MAX_ACK_NUM
+
+    @staticmethod
+    def maxWinSize():
+        return MAX_WINDOW_SIZE
+
+    @staticmethod
+    def getHeaderLeangth():
+        return HEADER_LENGTH
+
+    @staticmethod
+    def getDataLength():
+        return DATA_LEN
 
     # Returns a simple INIT packet.
+    @staticmethod
     def getInit(srcPort, desPort, seqNum, ackNum, winSize):
-        p = RxPacket(srcPort, desPort, seqNum, ackNum, (True, False, False, False), winSize)
-        return p
+        return RxPacket(srcPort, desPort, seqNum, ackNum, (True, False, False, False), winSize)
 
     # Returns a simple CNCT packet.
+    @staticmethod
     def getCnct(srcPort, desPort, seqNum, ackNum, winSize):
-        p = RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False), winSize)
-        return p
+        return RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False), winSize)
+
 
     # returns an RxPacket given a byteArray as an input
+    @staticmethod
     def fromByteArray(byteArray):
         p = RxPacket()
         p.__unpickle(byteArray)
+        return p
     # end static methods
 
     # constructor
     def __init__(self, srcPort = 0, desPort = 0, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = None):
+        self.header = {}
 
         if srcPort:
             self.header['srcPort'] = srcPort
@@ -81,7 +119,8 @@ class RxPacket:
         else:
             self.header['winSize'] = winSize
 
-        self.data = bytearray(data)
+        if data:
+            self.data = bytearray(data)
 
         self.header['checksum'] = self.__computeChecksum()
 
@@ -126,8 +165,12 @@ class RxPacket:
 
     # http://stackoverflow.com/a/1769267
     def __computeChecksum(self):
+        log("Computing checksum...\n")
         self.header['checksum'] = 0
-        packet = str(self.getByteArray())
+
+        log("Converting packet to byteArray...\n")
+        packet = str(self.toByteArray())
+        log("Packet converted to byteArray...\n")
 
         sum = 0
         for i in range(0, len(packet), 2):
