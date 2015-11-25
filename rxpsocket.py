@@ -4,6 +4,10 @@ from enum import Enum
 
 class RxPSocket:
 
+    def log(self, message):
+        if DEBUG:
+            print message
+
     # Class-wide list of current RxP ports in use.
     portsInUse = []
 
@@ -18,7 +22,7 @@ class RxPSocket:
 
 
     # Initliazation of class vars. Local to current instantiated class.
-    def __init__(self, srcPort):
+    def __init__(self, srcPort, debug = False):
         self.state = ConnectionStates.CLOSED
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rcvWindowSize = RxPacket.MAX_WINDOW_SIZE  # Receive Window size in bytes
@@ -31,6 +35,7 @@ class RxPSocket:
         self.timeout = None
         self.resetLimit = 50
         self.finalCnctAckNum = 2
+        self.debug = debug
 
         # Note on Sequence and Acknoledgment numbers: The sequence number should
         #  increase every time you SEND data, by the number of bytes. This should be
@@ -41,6 +46,9 @@ class RxPSocket:
         self.seqNum = 0
         self.ackNum = 0
 
+    def log(self, message):
+        if self.debug:
+            print message
         
     def gettimeout(self):
         return self.socket.gettimeout()
@@ -74,7 +82,7 @@ class RxPSocket:
             
             #receive INIT
             try:
-                bytes, addr = self.recvfrom(self.rcvWindowSize)
+                bytes, address = self.recvfrom(self.rcvWindowSize)
                 packet = self.__reconstructPacket(data = bytearray(bytes))
                 
                 if packet is None:
@@ -117,18 +125,18 @@ class RxPSocket:
                 self.sendto(initPacket.toByteArray(), (self.desAddr, self.desPort))
                     
                 
-                data, addr = bytearray(self.recvfrom(self.rcvWindowSize))
+                data, address = bytearray(self.recvfrom(self.rcvWindowSize))
                 packet = self.__reconstructPacket(data = bytearray(data))
                 if not packet:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     continue
             except socket.timeout:
-                resetsRemaining -= 1
+                resetsLeft -= 1
             else: 
                 if packet.isCnct():
                     break
                 else:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     
         if not waitLimit:
             raise Exception('socket timeout')
@@ -219,8 +227,8 @@ class RxPSocket:
                 
             packetQueue.append(packet)
             
-        resetsRemaining = self.resetLimit
-        while packetQueue and resetsRemaining:
+        resetsLeft = self.resetLimit
+        while packetQueue and resetsLeft:
             #send packets in send window
             window = self.sendWindowSize
             while window and packetQueue:
@@ -232,7 +240,7 @@ class RxPSocket:
                 sentQueue.append(packet)
                 
             try:
-                data, addr = self.recvfrom(self.recvWindowSize)
+                data, address = self.recvfrom(self.recvWindowSize)
                 handShakeFinishedCheck = self.__reconstructPacket(bytearray(data))
                 packet = self.__reconstructPacket(data = bytearray(data),  checkAckNum = lastSeqNum)
                 
@@ -240,12 +248,12 @@ class RxPSocket:
                     sentQueue.reverse()
                     packetQueue.extendleft(sentQueue)
                     sentQueue.clear()
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     continue
                 
             except socket.timeout:
                 window = 1
-                resetsRemaining -= 1
+                resetsLeft -= 1
                 sentQueue.reverse()
                 packetQueue.extendleft(sentQueue)
                 sentQueue.clear()
@@ -269,45 +277,45 @@ class RxPSocket:
                                 )
                     self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desPort))
                     
-                    resetsRemaining = self.resetLimit
+                    resetsLeft = self.resetLimit
 
 					sentQueue.reverse()
 					packetQueue.extendleft(sentQueue)
 					sentQueue.clear()
                 elif packet.isAck():
                     self.seqNum = packet.header['ackNum']
-                    resetsRemaining = self.resetLimit
+                    resetsLeft = self.resetLimit
                     sentQueue.clear()
                     
-        if not resetsRemaining:
+        if not resetsLeft:
             raise Exception('socket timeout')
             
     def recv(self):
         if self.srcPort is None:
-            raise RxPException("Socket not bound")
+            self.log("Socket already closed")
         
         if self.state != ConnectionStates.ESTABLISHED:
-            raise Exception("Connection not established")
+            self.log("Socket already closed")
             
         message = bytes()
             
-        resetsRemaining = self.resetLimit
-        while resetsRemaining:
+        resetsLeft = self.resetLimit
+        while resetsLeft:
             try:
-                data, addr = self.recvfrom(self.recvWindowSize)
+                data, address = self.recvfrom(self.recvWindowSize)
                 
             except socket.timeout:
-                resetsRemaining -= 1
+                resetsLeft -= 1
                 continue
                 
             packet = self.__reconstructPacket(bytearray(data))
             
             if not packet:
-                resetsRemaining -= 1
+                resetsLeft -= 1
                 continue
                 
             else:
-                self.ackNum += 1
+                self.ackNum = packet.
                 if self.ackNum > RxPacket.MAX_ACK_NUM:
                     self.ackNum = 0
                 message += packet.data
@@ -337,13 +345,13 @@ class RxPSocket:
                                 winSize = self.recvWindow,
                                 )
                     self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desPort))
-                    self.__closePassive()
+                    self.__closePassive(ackPacket)
                     break
                 
                 return message
                 
         
-        if not resetsRemaining:
+        if not resetsLeft:
             raise Exception('socket timeout')
         
         return message
@@ -365,23 +373,118 @@ class RxPSocket:
         
     def close(self):
         if self.srcPort is None:
+            self.log("Socket already closed")
+        
+        if self.state != ConnectionStates.ESTABLISHED:
+            self.log("Socket already closed")
+            
+        fin_flags = (False, False, False, True, False, False)
+        finPacket = RxPacket(
+                    srcPort = self.srcPort,
+                    desPort = self.desPort,
+                    seqNum = self.seqNum,
+                    ackNum = self.ackNum,
+                    flagList = fin_flags,
+                    winSize = self.recvWindow,
+                    )
+        
+        self.seqNum += 1
+        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+            self.seqNum = 0
+            
+        resetsLeft = self.resetLimit()
+        
+        waitingForHostB = True
+        isFinAcked = False
+        
+        while resetsLeft and (not isFinAcked or waitingForHostB):
+            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
+            
+            try:
+                data, address = self.recvfrom(self.recvWindow)
+                packet = self.__reconstructPacket(data)
+                
+                if not packet:
+                    resetsLeft -= 1
+            except socket.timeout:
+                resetsLeft -= 1
+                continue
+            else:
+                if (packet.isAck() and packet.header['ackNum'] == self.seqNum):
+                    isFinAcked = True
+                    
+                if (packet.isFin()):
+                    ack_flags = (False, False, False, True, False, False)
+                    finPacket = RxPacket(
+                                srcPort = self.srcPort,
+                                desPort = self.desPort,
+                                seqNum = self.seqNum,
+                                ackNum = self.ackNum,
+                                flagList = fin_flags,
+                                winSize = self.recvWindow,
+                                )
+                                
+                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
+                    waitingForHostB = False
+            
+        self = RxSocket(self.srcPort, self.debug)
+            
+    def __closePassive(self, ackPacket):
+        if self.srcPort is None:
             raise RxPException("Socket not bound")
         
         if self.state != ConnectionStates.ESTABLISHED:
             raise Exception("Connection not established")
             
-        flags = (False, False, True, False, False, False)
-        ackPacket = RxPacket(
+        fin_flags = (False, False, False, True, False, False)
+        finPacket = RxPacket(
                     srcPort = self.srcPort,
                     desPort = self.desPort,
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
-                    flagList = flags,
+                    flagList = fin_flags,
                     winSize = self.recvWindow,
                     )
         
         self.seqNum += 1
-        if self.seqNum > RxPacket.
+        if self.seqNum > RxPacket.MAX_SEQUENCE_NUM:
+            self.seqNum = 0
+            
+        resetsLeft = self.resetLimit()
+        
+        isFinAcked = False
+        
+        while resetsLeft and (not isFinAcked):
+            self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
+            
+            try:
+                data, address = self.recvfrom(self.recvWindow)
+                packet = self.__reconstructPacket(data)
+                
+                if not packet:
+                    resetsLeft -= 1
+            except socket.timeout:
+                resetsLeft -= 1
+                continue
+            else:
+                if (packet.isAck() and packet.header['ackNum'] == self.seqNum):
+                    isFinAcked = True
+                    
+                if (packet.isFin()):
+                    ack_flags = (False, False, False, True, False, False)
+                    finPacket = RxPacket(
+                                srcPort = self.srcPort,
+                                desPort = self.desPort,
+                                seqNum = self.seqNum,
+                                ackNum = self.ackNum,
+                                flagList = fin_flags,
+                                winSize = self.recvWindow,
+                                )
+                                
+                    self.sendto(finPacket.toByteArray(), (self.desAddr, self.desPort))
+                    
+        self = RxSocket(self.srcPort, self.debug)
+        
         
     def __sendInit(self):
     
@@ -400,26 +503,26 @@ class RxPSocket:
             self.seqNum = 0
         
         #transfer packet
-        resetsRemaining = self.resetLimit
-        while resetsRemaining:
+        resetsLeft = self.resetLimit
+        while resetsLeft:
             self.sendto(initPacket.toByteArray(), (self.desAddr, self.desPort))
             
             try:
-                data, addr = bytearray(self.recvfrom(self.rcvWindowSize))
+                data, address = bytearray(self.recvfrom(self.rcvWindowSize))
                 packet = self.__reconstructPacket(data = bytearray(data))
                 
                 if not packet:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     continue
             except socket.timeout:
-                resetsRemaining -= 1
+                resetsLeft -= 1
             else: 
                 if packet.isAck() and packet.header['ackNum'] == self.seqNum:
                     break
                 else:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     
-        if not resetsRemaining:
+        if not resetsLeft:
             raise Exception('socket timeout')
             
         return packet
@@ -441,25 +544,25 @@ class RxPSocket:
             self.seqNum = 0
         
         #transfer packet
-        resetsRemaining = self.resetLimit
-        while resetsRemaining:
+        resetsLeft = self.resetLimit
+        while resetsLeft:
             self.sendto(initPacket.toByteArray(), (self.desAddr, self.desPort))
             
             try:
-                data, addr = self.recvfrom(self.rcvWindowSize)
+                data, address = self.recvfrom(self.rcvWindowSize)
                 packet = self.__reconstructPacket(data = bytearray(data))
                 if not packet:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     continue
             except socket.timeout:
-                resetsRemaining -= 1
+                resetsLeft -= 1
             else: 
                 if packet.isAck() and packet.header['ackNum'] == self.seqNum:
                     break
                 else:
-                    resetsRemaining -= 1
+                    resetsLeft -= 1
                     
-        if not resetsRemaining:
+        if not resetsLeft:
             raise Exception('socket timeout')
             
         return packet
@@ -478,7 +581,6 @@ class RxPSocket:
 			ackMismatch = (int(packetAckNum) - checkAckNum - 1)
 
 			if packetAckNum and ackMismatch:
-				logging.debug("acknum: " + str(packetAckNum))
 				return ackMismatch
         
         return packet
