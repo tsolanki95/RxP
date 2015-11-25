@@ -117,8 +117,8 @@ class RxPSocket:
                 #create packet
                 flags = (False, False, True, False, False, False)
                 initPacket = RxPacket(
-                            srcRxPPort = self.srcRxPPort,
-                            desRxPPort = self.desRxPPort,
+                            srcPort = self.srcRxPPort,
+                            desPort = self.desRxPPort,
                             seqNum = self.seqNum,
                             ackNum = self.ackNum,
                             flagList = flags,
@@ -149,8 +149,8 @@ class RxPSocket:
         #send the second ACK
         flags = (False, False, True, False, False, False)
         initPacket = RxPacket(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = flags,
@@ -215,8 +215,8 @@ class RxPSocket:
                 flags = (False, False, False, False, False, False)
 
             packet = RxPacket(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = flags,
@@ -271,8 +271,8 @@ class RxPSocket:
 
                     flags = (False, False, True, False, False, False)
                     ackPacket = RxPacket(
-                                srcRxPPort = self.srcRxPPort,
-                                desRxPPort = self.desRxPPort,
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = flags,
@@ -325,8 +325,8 @@ class RxPSocket:
 
                 flags = (False, False, True, False, False, False)
                 ackPacket = RxPacket(
-                            srcRxPPort = self.srcRxPPort,
-                            desRxPPort = self.desRxPPort,
+                            srcPort = self.srcRxPPort,
+                            desPort = self.desRxPPort,
                             seqNum = self.seqNum,
                             ackNum = self.ackNum,
                             flagList = flags,
@@ -340,8 +340,8 @@ class RxPSocket:
                 if (packet.isFin()):
                     flags = (False, False, True, False, False, False)
                     ackPacket = RxPacket(
-                                srcRxPPort = self.srcRxPPort,
-                                desRxPPort = self.desRxPPort,
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = flags,
@@ -387,8 +387,8 @@ class RxPSocket:
 
         fin_flags = (False, False, False, True, False, False)
         finPacket = RxPacket(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = fin_flags,
@@ -423,8 +423,8 @@ class RxPSocket:
                 if (packet.isFin()):
                     ack_flags = (False, False, False, True, False, False)
                     finPacket = RxPacket(
-                                srcRxPPort = self.srcRxPPort,
-                                desRxPPort = self.desRxPPort,
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = fin_flags,
@@ -450,8 +450,8 @@ class RxPSocket:
 
         fin_flags = (False, False, False, True, False, False)
         finPacket = RxPacket(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     ackNum = self.ackNum,
                     flagList = fin_flags,
@@ -485,8 +485,8 @@ class RxPSocket:
                 if (packet.isFin()):
                     ack_flags = (False, False, False, True, False, False)
                     finPacket = RxPacket(
-                                srcRxPPort = self.srcRxPPort,
-                                desRxPPort = self.desRxPPort,
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
                                 seqNum = self.seqNum,
                                 ackNum = self.ackNum,
                                 flagList = fin_flags,
@@ -505,8 +505,8 @@ class RxPSocket:
         #create packet
         flags = (True, False, False, False, False, False)
         initPacket = RxPacket.getInit(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     winSize = self.recvWindow,
                     )
@@ -546,8 +546,8 @@ class RxPSocket:
         #create packet
         flags = (False, True, False, False, False, False)
         cnctPacket = RxPacket.getCnct(
-                    srcRxPPort = self.srcRxPPort,
-                    desRxPPort = self.desRxPPort,
+                    srcPort = self.srcRxPPort,
+                    desPort = self.desRxPPort,
                     seqNum = self.seqNum,
                     winSize = self.recvWindow,
                     )
