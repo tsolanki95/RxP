@@ -37,10 +37,12 @@ class RxPSocket:
         self.seqNum = 0
         self.ackNum = 0
 
-    def UDPdesSet(self. UDPdesport):
+    def UDPdesSet(self, UDPdesport):
+        self.log("Setting destination UDP port...\n")
         self.desUDPPort = UDPdesport
 
     def UDPbind(self, UDPsrcport):
+        self.log("Setting source UDP port...\n")
         self.srcUDPPort = UDPsrcport
 
     def log(self, message):
@@ -56,7 +58,7 @@ class RxPSocket:
     # Bind the socket to a specific local RxP port.
     # Set the object's port var.
     def bind(self, aPort):
-        self.log("Attempting to bind to RxP port " + aPort)
+        self.log("Attempting to bind to RxP port " + str(aPort))
         try:
             if aPort:
                 self.socket.bind((self.srcAddr, aPort))

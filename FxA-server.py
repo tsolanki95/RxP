@@ -152,7 +152,11 @@ def runServer():
     if not (state == "Listening" or state == "Connected"):
         try:
             log("Attempting to listen...\n")
-            sock.listen()
+            try:
+                sock.listen()
+            except Exception as e:
+                log("Exception: " + str(e))
+                sys.exit(0)
             log("Setting state to connected.\n")
             state = "Connected"
         except Exception as e:
@@ -203,7 +207,7 @@ validateSysArgs()
 clientRxPPort = 6001
 serverRxPPort = 6002
 
-loclUDPPort = sys.argv[1]
+locUDPPort = sys.argv[1]
 destUDPPort = sys.argv[3]
 destIP = sys.argv[2]
 #sock = rxpsocket()
@@ -211,17 +215,18 @@ log("Creating empty socket...\n")
 sock = rxpsocket.RxPSocket(serverRxPPort)
 state = 'NotConnected'
 
-# Bind to local ip and port.
+# Bind to local RxP ip and port.
 try:
-    log("Binding socket to 127.0.0.1 at port " + str(locUDPPort) + "...\n")
-    log("Also settings UDP ports on socket...\n")
-    sock.bind(locUDPPort)
-    sock.UDPbind(localUDPPort)
-    sock.desUDPPort(destUDPPort)
+    log("Binding client RXPport: " + str(clientRxPPort))
+    sock.bind(clientRxPPort)
+    log("Binding UDP src port: " + str(locUDPPort))
+    sock.UDPbind(locUDPPort)
+    log("Binding UDP des port: " + str(destUDPPort))
+    sock.UDPdesSet(destUDPPort)
     log("UDP src and des ports set; RxP src port bound...\n")
 except Exception as e:
     print "ERROR: Could not bind to port " + str(locUDPPort) + " on localhost.\n"
-    log(str(e))
+    log("Exception: " + str(e))
     sys.exit(1)
 
 log("Entering run loop for first time...\n")
