@@ -47,7 +47,7 @@ class RxPacket:
                     ('desPort', uint16, 2),
                     ('seqNum', uint32, 4),
                     ('ackNum', uint32, 4),
-                    ('flags', uint32, 4),
+                    ('flagList', uint32, 4),
                     ('winSize', uint16, 2),
                     ('checksum', uint16, 2)
                     )
@@ -82,13 +82,13 @@ class RxPacket:
     @staticmethod
     def getInit(srcPort, desPort, seqNum, ackNum, winSize):
         log("Returning an INIT packet...\n")
-        return RxPacket(srcPort, desPort, seqNum, ackNum, (True, False, False, False), winSize)
+        return RxPacket(srcPort, desPort, seqNum, ackNum, (True, False, False, False, False, False), winSize)
 
     # Returns a simple CNCT packet.
     @staticmethod
     def getCnct(srcPort, desPort, seqNum, ackNum, winSize):
         log("Returning a CNCT packet...\n")
-        return RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False), winSize)
+        return RxPacket(srcPort, desPort, seqNum, ackNum, (False, True, False, False, False, False), winSize)
 
 
     # returns an RxPacket given a byteArray as an input
@@ -131,6 +131,8 @@ class RxPacket:
 
         if data:
             self.data = bytearray(data)
+        else:
+            self.data = None
 
         self.header['checksum'] = self.__computeChecksum()
 
@@ -218,7 +220,7 @@ class RxPacket:
             value = dataType.from_buffer(bytes).value
 
             #add specific field, done differently for flags
-            if (fieldName == 'flags'):
+            if (fieldName == 'flagList'):
                 value = self.__unpickleFlags(value)
 
             #add value to header
@@ -242,21 +244,27 @@ class RxPacket:
         byteArray = bytearray()
 
         for (fieldName, dataType, size) in HEADER_FIELDS:
-            log("pickling header field " + fieldName + "....\n")
+            log("Pickling header field " + fieldName + "....\n")
             value = self.header[fieldName]
 
-            if (fieldName != 'flags'):
-                log("pickling flags")
+            if (fieldName != 'flagList'):
+                log("Pickling non-flags...\n")
                 byteArray.extend(bytearray(dataType(value)))
+                log("Pickling successfull...\n")
             else:
-                byteArray.extend(self.__pickleFlags())
+                log("Pickling flags...\n")
+                byteArray.extend(self.__pickleFlags(dataType))
+                log("Flags pickled successfully...\n")
 
         return byteArray
 
     #converts a flag list to a length 4 bytearray
-    def __pickleFlags(self):
+    def __pickleFlags(self, dataType):
+        log("Entered pickle flags method...\n")
         value = 0
-        flags = self.header['flags']
+        flags = self.header['flagList']
+
+        log("Current flags: " + str(flags))
         if flags[0] == True:
             value = value | 0x1
         if flags[1] == True:
@@ -269,6 +277,6 @@ class RxPacket:
             value = value | (0x1 << 4)
         if flags[5] == True:
             value = value | (0x1 << 5)
-        return bytearray(uint32(value))
+        return bytearray(dataType(value))
 
     #end instance methods

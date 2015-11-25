@@ -199,6 +199,8 @@ class RxPSocket:
 
 
     def send(self, msg):
+        log("Entered send. Attempting to send message...\n")
+
         if self.srcRxPPort is None:
             raise Exception("Socket not bound")
 
@@ -210,6 +212,7 @@ class RxPSocket:
         sentQueue = deque()
         lastSeqNum = self.seqNum
 
+        log("Fragmenting data, adding it to que...\n")
         #fragment data and add it to data queue
         for i in range(stop = len(msg), step = RxPacket.getDataLength()):
             if (i + RxPacket.getDataLength() > len(msg)):
@@ -217,6 +220,7 @@ class RxPSocket:
             else:
                 dataQueue.append(bytearray(msg[i : i + RxPacket.getDataLength()]))
 
+        log("Constructing to data queue...\n")
         #construct packet queue from data queue
         for data in dataQueue:
             if data == dataQueue[0]:
@@ -242,13 +246,19 @@ class RxPSocket:
 
             packetQueue.append(packet)
 
+        log("Packet queue created...\n")
+
+        log("Preparing to send packets...\n")
+
         resetsLeft = self.resetLimit
         while packetQueue and resetsLeft:
             #send packets in send window
             window = self.sendWindowSize
             while window and packetQueue:
                 packetToSend = packetQueue.popLeft()
+                log("Sending RxPPacket to IP: " + destAddr + " and port + " + desUDPPort + "...\n")
                 self.sendto(packet.toByteArray(), (self.desAddr, self.desUDPPort))
+                log("RxPPacket sent!\n")
                 lastSeqNum = packet.header['seqNum']
 
                 window -= 1
