@@ -113,6 +113,10 @@ class RxPSocket:
                 waitLimit -= 1
                 continue
 
+            except Exception:
+                waitLimit -= 1
+                continue
+
             else:
                 log("Checking to see if packet isInit, in listen...\n")
                 if (packet.isInit()):
@@ -155,15 +159,17 @@ class RxPSocket:
                 data, address = self.recvfrom(self.recvWindowSize)
                 packet = self.__reconstructPacket(data = bytearray(data))
                 if not packet:
-                    resetsLeft -= 1
+                    waitLimit -= 1
                     continue
             except socket.timeout:
-                resetsLeft -= 1
+                waitLimit -= 1
+            except Exception:
+                waitLimit -= 1
             else:
                 if packet.isCnct():
                     break
                 else:
-                    resetsLeft -= 1
+                    waitLimit -= 1
 
         if not waitLimit:
             raise Exception('socket timeout')
@@ -181,7 +187,12 @@ class RxPSocket:
                     flagList = flags,
                     winSize = self.recvWindowSize,
                     )
-        self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+        try:
+            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+        except socket.timeout:
+            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+        except Exception:
+            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
         self.state = 'ESTABLISHED'
 
@@ -291,7 +302,7 @@ class RxPSocket:
             while window and packetQueue:
                 packetToSend = packetQueue.popleft()
 
-                if (not isinstance(packetToSend, int)) and (not packetToSend.isAck()):
+                if (packetToSend and not isinstance(packetToSend, int)) and (not packetToSend.isAck()):
                     #log("Sending RxPPacket to IP: " + str(self.desAddr) + " and port + " + str(self.desUDPPort) + "...\n")
                     self.sendto(packetToSend.toByteArray(), (self.desAddr, self.desUDPPort))
                     numPackSent+=1
@@ -318,6 +329,14 @@ class RxPSocket:
                     continue
 
             except socket.timeout:
+                window = 1
+                resetsLeft -= 1
+                sentQueue.reverse()
+                packetQueue.extendleft(sentQueue)
+                sentQueue.clear()
+
+            except Exception:
+
                 window = 1
                 resetsLeft -= 1
                 sentQueue.reverse()
@@ -374,12 +393,47 @@ class RxPSocket:
                 data, address = self.recvfrom(self.recvWindowSize)
 
             except socket.timeout:
+                print "timeout in recv"
+                flags = (False, False, True, False, False, False)
+                ackPacket = RxPacket(
+                            srcPort = self.srcRxPPort,
+                            desPort = self.desRxPPort,
+                            seqNum = self.seqNum,
+                            ackNum = self.ackNum,
+                            flagList = flags,
+                            winSize = self.recvWindowSize,
+                            )
+                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+                resetsLeft -= 1
+                continue
+            except Exception:
+                print "timeout in recv"
+                flags = (False, False, True, False, False, False)
+                ackPacket = RxPacket(
+                            srcPort = self.srcRxPPort,
+                            desPort = self.desRxPPort,
+                            seqNum = self.seqNum,
+                            ackNum = self.ackNum,
+                            flagList = flags,
+                            winSize = self.recvWindowSize,
+                            )
+                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                 resetsLeft -= 1
                 continue
 
             packet = self.__reconstructPacket(bytearray(data))
 
             if not packet:
+                flags = (False, False, True, False, False, False)
+                ackPacket = RxPacket(
+                            srcPort = self.srcRxPPort,
+                            desPort = self.desRxPPort,
+                            seqNum = self.seqNum,
+                            ackNum = self.ackNum,
+                            flagList = flags,
+                            winSize = self.recvWindowSize,
+                            )
+                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                 resetsLeft -= 1
                 continue
 
@@ -391,8 +445,8 @@ class RxPSocket:
                 if packet.isAck():
                     resetsLeft -= 1
                     continue
-
-                message += packet.data
+                if packet.data:
+                    message += packet.data
 
                 #log("Message so far is " + message.decode('UTF-8') + "\n")
                 #log("Individual packet this time was " + packet.data.decode('UTF-8') + "\n")
@@ -406,7 +460,30 @@ class RxPSocket:
                             flagList = flags,
                             winSize = self.recvWindowSize,
                             )
-                self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+                try:
+                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+                except socket.timeout:
+                    flags = (False, False, True, False, False, False)
+                    ackPacket = RxPacket(
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
+                                seqNum = self.seqNum,
+                                ackNum = self.ackNum,
+                                flagList = flags,
+                                winSize = self.recvWindowSize,
+                                )
+                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+                except Exception:
+                    flags = (False, False, True, False, False, False)
+                    ackPacket = RxPacket(
+                                srcPort = self.srcRxPPort,
+                                desPort = self.desRxPPort,
+                                seqNum = self.seqNum,
+                                ackNum = self.ackNum,
+                                flagList = flags,
+                                winSize = self.recvWindowSize,
+                                )
+                    self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
                 if (packet.isEndOfMessage()):
                     break
 
@@ -483,7 +560,7 @@ class RxPSocket:
         if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
-        resetsLeft = self.resetLimit()
+        resetsLeft = self.resetLimit
 
         waitingForHostB = True
         isFinAcked = False
@@ -498,6 +575,9 @@ class RxPSocket:
                 if not packet:
                     resetsLeft -= 1
             except socket.timeout:
+                resetsLeft -= 1
+                continue
+            except Exception:
                 resetsLeft -= 1
                 continue
             else:
@@ -519,7 +599,7 @@ class RxPSocket:
                     waitingForHostB = False
 
         self.socket.close()
-        self = RxSocket(self.srcRxPPort, self.debug)
+        self = RxPSocket(self.srcRxPPort, self.debug)
         self.state = 'CLOSED'
 
     def __closePassive(self, ackPacket):
@@ -546,7 +626,7 @@ class RxPSocket:
         if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
-        resetsLeft = self.resetLimit()
+        resetsLeft = self.resetLimit
 
         isFinAcked = False
 
@@ -560,6 +640,9 @@ class RxPSocket:
                 if not packet:
                     resetsLeft -= 1
             except socket.timeout:
+                resetsLeft -= 1
+                continue
+            except Exception:
                 resetsLeft -= 1
                 continue
             else:
@@ -580,7 +663,7 @@ class RxPSocket:
                     self.sendto(finPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
         self.socket.close()
-        self = RxSocket(self.srcRxPPort, self.debug)
+        self = RxPSocket(self.srcRxPPort, self.debug)
         self.state = 'CLOSED'
 
 
@@ -640,6 +723,8 @@ class RxPSocket:
                     resetsLeft -= 1
                     continue
             except socket.timeout:
+                resetsLeft -= 1
+            except Exception:
                 resetsLeft -= 1
             else:
                 if packet.isAck() and packet.header['ackNum'] == self.seqNum:
@@ -711,6 +796,8 @@ class RxPSocket:
                     resetsLeft -= 1
                     continue
             except socket.timeout:
+                resetsLeft -= 1
+            except Exception:
                 resetsLeft -= 1
             else:
                 if packet.isAck() and packet.header['ackNum'] == self.seqNum:

@@ -272,7 +272,7 @@ destIP = sys.argv[2]
 
 log("Creating empty socket...\n")
 sock = rxpsocket.RxPSocket(clientRxPPort)
-sock.settimeout(250)
+sock.settimeout(100)
 state = 'NotConnected'
 
 # Bind to local RxP ip and port.
