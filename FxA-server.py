@@ -54,6 +54,14 @@ def validCommand(command):
         return False
 
 def send_msg(asocket, msg):
+    asocket.send(msg)
+
+def recv_msg(asocket):
+    return asocket.recv(100000000000)
+
+
+'''
+def send_msg(asocket, msg):
     # Prefix each message with a 4-byte length (network byte order)
     msg = struct.pack('>I', len(msg)) + msg
     asocket.send(msg)
@@ -74,23 +82,30 @@ def recvall(asocket, n):
     data = ''
     recvCallsMade = 0;
     while len(data) < n:
+        log("Length of received data is " + str(len(data)) + "\n")
+        log("Length of total data is " + str(n) + "\n")
+
+
         # Only show progress if we're downloading a file bigger than 200 bytes.
-        if n > 200:
+        if n > 1000:
             # Show download progress.
             sys.stdout.write('\r')
             sys.stdout.write('>>>> Downloading file... ' + str(float(int(100 * (len(data) / float(n))))) + "% <<<<")
             sys.stdout.flush()
         packet = asocket.recv(n - len(data))
+        log("In recvall, receieved " + str((n-len(data))) + "bytes...\n")
         if not packet:
             return None
         data += packet
         recvCallsMade += 1
     sys.stdout.write('\r')
-    sys.stdout.write('>>>> Downloading file... 100% <<<<')
+    if n > 1000:
+        sys.stdout.write('>>>> Downloading file... 100% <<<<')
     log("\n Calls to rcv() made: " + str(recvCallsMade) + "...\n")
     print str(len(data)) + " bytes successuflly received.\n"
+    log("The data receieved in RECVALL is: " + data.decode('UTF-8'))
     return data
-
+'''
 
 def window(size):
     print "This functionality isn't implemented yet.\n"
@@ -98,7 +113,8 @@ def window(size):
 def handleGet(filename):
     try:
         log("Attempting to open file " + filename + "...\n")
-        with open(filename, "rb") as afile:
+        log("The type of the filename is: " + str(type(filename)))
+        with open(filename.decode('UTF-8'), "rb") as afile:
         # File is open. Send as bytestream.
             log("File opened - now attempting to read it in.\n")
             toSend = afile.read()
@@ -118,7 +134,6 @@ def handleGet(filename):
 def handlePut(filename):
     # Send ready message.
     log("Sending READY message to client...\n")
-    rMessage = "READY"
     send_msg(sock, "READY")
 
     log("Ready message sent...\n")
@@ -129,7 +144,7 @@ def handlePut(filename):
     send_msg(sock, "OKAY")
 
     log("Writing file...\n")
-    f = open(filename, 'wb')
+    f = open(filename.decode('UTF-8'), 'wb')
     f.write(theFile)
     f.close()
     print "File written!\n"
@@ -213,6 +228,7 @@ destIP = sys.argv[2]
 
 log("Creating empty socket...\n")
 sock = rxpsocket.RxPSocket(serverRxPPort)
+sock.settimeout(250)
 state = 'NotConnected'
 
 # Bind to local RxP ip and port.

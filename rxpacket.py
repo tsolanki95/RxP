@@ -15,7 +15,7 @@ import struct
 import random
 from functools import reduce
 
-DEBUG = True
+DEBUG = False
 
 def log(message):
     if DEBUG:
@@ -98,7 +98,7 @@ class RxPacket:
         p = RxPacket()
         log("Unpicking byteArray to packet...\n")
         p.__unpickle(byteArray)
-        log("Returning unpickled packet...\n")
+        log("Returning unpickled packet..." + str(p.header) + "\n")
         return p
     # end static methods
 
@@ -106,10 +106,8 @@ class RxPacket:
     def __init__(self, srcPort = 0, desPort = 0, seqNum = 0, ackNum = 0, flagList = None, winSize = MAX_WINDOW_SIZE, data = None):
         self.header = {}
 
-        if srcPort:
-            self.header['srcPort'] = srcPort
-        if desPort:
-            self.header['desPort'] = desPort
+        self.header['srcPort'] = srcPort
+        self.header['desPort'] = desPort
 
         if seqNum > MAX_SEQUENCE_NUM:
             self.header['seqNum'] = seqNum - MAX_SEQUENCE_NUM #Restart the sequence numbers??
@@ -123,6 +121,8 @@ class RxPacket:
 
         if flagList:
             self.header['flagList'] = flagList
+        else:
+            self.header['flagList'] = (False, False, False, False, False, False)
 
         if winSize > MAX_WINDOW_SIZE:
             self.header['winSize'] = MAX_WINDOW_SIZE
@@ -134,32 +134,54 @@ class RxPacket:
         else:
             self.data = None
 
-        self.header['checksum'] = self.__computeChecksum()
+        log("Computing checksum...\n")
+        self.header['checksum'] = 0
+
+        log("Converting packet to byteArray...\n")
+        packet = str(self.toByteArray())
+        log("Packet converted to byteArray...\n")
+
+        asum = 0
+        for i in range(0, len(packet), 2):
+
+            #16 bit carry-around addition
+            if i + 1 == len(packet):
+                value = ord(packet[i])
+            else:
+                value = ord(packet[i]) + (ord(packet[i + 1]) << 8)
+            temp = asum + value
+            asum = (temp & 0xffff) + (temp >> 16)
+
+        log("Done computing checksum....\n")
+        self.header['checksum'] = int(~asum & 0xffff)
+        log("Header is : " + str(self.header) + ".....\n")
 
     # instance methods
 
     # checks if the internet checksum provided is equal to what is
     # calculated on this side
     def isValid(self):
+        log("isValid entered...\n")
         givenChecksum = self.header['checksum']
+        log("given checksum is: " + str(givenChecksum) + "...\n")
         calculatedChecksum = self.__computeChecksum()
         return givenChecksum == calculatedChecksum
 
     # checks if it is an init packet
     def isInit(self):
-        return header['flags'][0]
+        return self.header['flagList'][0]
 
     def isCnct(self):
-        return header['flags'][1]
+        return self.header['flagList'][1]
 
     def isAck(self):
-        return header['flags'][2]
+        return self.header['flagList'][2]
 
     def isFin(self):
-        return header['flags'][3]
+        return self.header['flagList'][3]
 
     def isEndOfMessage(self):
-        return header['flags'][5]
+        return self.header['flagList'][5]
 
     # Return a byte array of packets to use when sending via UDP.
     # flagList should be a 4-length array of booleans corresponding to
@@ -188,15 +210,20 @@ class RxPacket:
         packet = str(self.toByteArray())
         log("Packet converted to byteArray...\n")
 
-        sum = 0
+        asum = 0
         for i in range(0, len(packet), 2):
 
             #16 bit carry-around addition
-            value = ord(packet[i]) + (ord(packet[i + 1]) << 8)
-            temp = sum + value
-            sum = (temp & 0xffff) + (temp >> 16)
+            if i + 1 == len(packet):
+                value = ord(packet[i])
+            else:
+                value = ord(packet[i]) + (ord(packet[i + 1]) << 8)
+            temp = asum + value
+            asum = (temp & 0xffff) + (temp >> 16)
 
-        return ~sum & 0xffff #16-bit one's complement
+        log("Done computing checksum....\n")
+        return int(~asum & 0xffff)
+        log("ComputeChecksum: Header is : " + str(self.header) + ".....\n")
 
     #adds byteArray to object
     def __unpickle(self, byteArray):
@@ -237,7 +264,7 @@ class RxPacket:
         isFin = (((value & 0x8) >> 3) == 1)
         isNM = (((value & 0x16) >> 4) == 1)
         isEOM = (((value & 0x32) >> 5) == 1)
-        return (isInit, isCnct, isAck, isFin)
+        return (isInit, isCnct, isAck, isFin, isNM, isEOM)
 
     #converts the header to a length 20 bytearray
     def __pickleHeader(self):

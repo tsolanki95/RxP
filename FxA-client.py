@@ -63,7 +63,7 @@ def connect():
         sock.close()
 
     try:
-        log("Attempting to connect to server at IP:" + destIP + " and Port:" + str(serverRxPPort) + "...\n")
+        log("Attempting to connect to server at IP:" + destIP + " and ServerRxPort:" + str(serverRxPPort) + "...\n")
         sock.connect((destIP, serverRxPPort))
         state = "Connected"
     except Exception as e:
@@ -148,6 +148,13 @@ def put(filename):
         print "Server cannot receive file. Reason: " + response.decode("UTF-8")
 
 def send_msg(asocket, msg):
+    asocket.send(msg)
+
+def recv_msg(asocket):
+    return asocket.recv(100000000000)
+
+'''
+def send_msg(asocket, msg):
     # Prefix each message with a 4-byte length (network byte order)
     msg = struct.pack('>I', len(msg)) + msg
     asocket.send(msg)
@@ -168,6 +175,9 @@ def recvall(asocket, n):
     data = ''
     recvCallsMade = 0;
     while len(data) < n:
+        log("Length of received data is " + str(len(data)) + "\n")
+        log("Length of total data is " + str(n) + "\n")
+
         # Only show progress if we're downloading a file bigger than 200 bytes.
         if n > 200:
             # Show download progress.
@@ -183,8 +193,9 @@ def recvall(asocket, n):
     sys.stdout.write('>>>> Downloading file... 100% <<<<')
     log("\n Calls to rcv() made: " + str(recvCallsMade) + "...\n")
     print str(len(data)) + " bytes successuflly received.\n"
+    log("The data receieved in RECVALL is: " + data.decode('UTF-8'))
     return data
-
+'''
 
 def window(size):
     print "This functionality isn't implemented yet.\n"
@@ -200,7 +211,6 @@ def disconnect():
             print "Socket is already disconnected.\n"
         elif state == 'Connected':
             # Tell server we're about to disconnect.
-            send_msg("DISCONNECTING")
             sock.close()
             state = 'NotConnected'
 
@@ -262,6 +272,7 @@ destIP = sys.argv[2]
 
 log("Creating empty socket...\n")
 sock = rxpsocket.RxPSocket(clientRxPPort)
+sock.settimeout(250)
 state = 'NotConnected'
 
 # Bind to local RxP ip and port.

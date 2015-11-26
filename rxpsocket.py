@@ -1,6 +1,20 @@
 import socket
 import rxpacket
+import sys
+import struct
+from collections import deque
 from rxpacket import RxPacket
+
+DEBUG = False
+SUPERDEBUG = False
+
+def log(message):
+    if DEBUG:
+        print message
+
+def superlog(message):
+    if SUPERDEBUG:
+        print message
 
 class RxPSocket:
 
@@ -17,7 +31,6 @@ class RxPSocket:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.recvWindowSize = RxPacket.maxWinSize()  # Receive Window size in bytes
         self.sendWindowSize = 1 # Send window size in bytes
-        self.buffer = None      # Actual memory space for the buffer
         self.srcRxPPort = srcRxPPort  # Local RxP port, not UDP port
         self.desRxPPort = None     # Destination RxP Port, not UDP port
         self.desAddr = None
@@ -40,11 +53,12 @@ class RxPSocket:
 
     def UDPdesSet(self, UDPdesport):
         self.log("Setting destination UDP port...\n")
-        self.desUDPPort = UDPdesport
+        self.desUDPPort = int(UDPdesport)
 
     def UDPbind(self, UDPsrcport):
-        self.log("Setting source UDP port...\n")
-        self.srcUDPPort = UDPsrcport
+        self.log("Setting and binding source UDP port...\n")
+        self.srcUDPPort = int(UDPsrcport)
+        self.socket.bind((self.srcAddr, int(UDPsrcport)))
 
     def log(self, message):
         if self.debug:
@@ -54,7 +68,7 @@ class RxPSocket:
         return self.socket.gettimeout()
 
     def settimeout(self, val):
-        return self.socket.settimeout()
+        return self.socket.settimeout(val)
 
     # Bind the socket to a specific local RxP port.
     # Set the object's port var.
@@ -62,17 +76,16 @@ class RxPSocket:
         self.log("Attempting to bind to RxP port " + str(aPort))
         try:
             if aPort:
-                self.socket.bind((self.srcAddr, aPort))
-                self.bindPort = aPort
+                self.srcRxPPort = int(aPort)
         except Exception as e:
-            print("The socket could not be bound to " + aPort + ".")
+            log("The socket could not be bound to " + aPort + ".")
             self.log(str(e))
 
     # Listen for incoming connectins, and accepts them.
     # Uses the RxP handshake as described in the RxP state diagram.
     # Once connection is established, sets up memory and window.
     def listen(self):
-        if self.bindPort is None:
+        if self.srcUDPPort is None:
             self.log("An attempt to listen an un unbound port was made...\n")
             raise Exception("Socket not bound")
             sys.exit(1)
@@ -87,9 +100,10 @@ class RxPSocket:
             #receive INIT
             try:
                 self.log("Calling recvfrom to see if we have anything...\n")
-                theBytes, address = self.recvfrom(self.rcvWindowSize)
+                theBytes, address = self.recvfrom(self.recvWindowSize)
                 self.log("Recvfrom called....\n")
                 packet = self.__reconstructPacket(data = bytearray(theBytes))
+                log("Packet has been reconstructed. We're in listen. Header: " + str(packet.header) + "\n")
 
                 if packet is None:
                     waitLimit -= 1
@@ -100,7 +114,9 @@ class RxPSocket:
                 continue
 
             else:
+                log("Checking to see if packet isInit, in listen...\n")
                 if (packet.isInit()):
+                    log("Packet is INIT; breaking out of while loop in listen...\n")
                     break
                 else:
                     waitLimit -= 1
@@ -110,12 +126,13 @@ class RxPSocket:
             log("Socket timed out!\n")
             raise Exception('socket timeout')
 
+
         self.ackNum = packet.header['seqNum'] + 1
-        self.log("Setting destination RxPPort to " + packet.header['desPort'])
+        self.log("Setting destination RxPPort to " + str(packet.header['desPort']))
         self.desRxPPort = packet.header['desPort']
-        self.desAddr = addr[0]
-        self.log("Setting destination UDP port to " + str(addr[1]))
-        self.desUDPPort = addr[1]
+        self.desAddr = address[0]
+        self.log("Setting destination UDP port to " + str(address[1]))
+        self.desUDPPort = address[1]
 
         #Send Ack 1
         waitLimit = self.resetLimit * 100
@@ -135,7 +152,7 @@ class RxPSocket:
                 self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
 
 
-                data, address = bytearray(self.recvfrom(self.rcvWindowSize))
+                data, address = self.recvfrom(self.recvWindowSize)
                 packet = self.__reconstructPacket(data = bytearray(data))
                 if not packet:
                     resetsLeft -= 1
@@ -179,7 +196,7 @@ class RxPSocket:
             sys.exit(1)
 
         self.desAddr = ip
-        self.desRxPPort = port
+        self.desRxPPort = int(port)
 
         try:
             self.log("Sending INIT packet....\n")
@@ -188,7 +205,8 @@ class RxPSocket:
 
             # Create a Cnct packet and send it off to the other host
             self.log("Sending CNCT packet...\n")
-            ack2 = __sendCnct()
+            ack2 = self.__sendCnct()
+            log("CNCT packet sent!\n")
         except Exception:
             self.log("Could not connect...\n")
             raise Exception("Could not connect")
@@ -199,7 +217,8 @@ class RxPSocket:
 
 
     def send(self, msg):
-        log("Entered send. Attempting to send message...\n")
+
+        superlog("We're sending: " + str(len(msg)) + " bytes.\n")
 
         if self.srcRxPPort is None:
             raise Exception("Socket not bound")
@@ -214,14 +233,20 @@ class RxPSocket:
 
         log("Fragmenting data, adding it to que...\n")
         #fragment data and add it to data queue
-        for i in range(stop = len(msg), step = RxPacket.getDataLength()):
+        for i in range(0, len(msg), RxPacket.getDataLength()):
             if (i + RxPacket.getDataLength() > len(msg)):
                 dataQueue.append(bytearray(msg[i : ]))
+                log("In send dataQue loop, adding: " + bytearray(msg[i : ]).decode('UTF-8') )
             else:
                 dataQueue.append(bytearray(msg[i : i + RxPacket.getDataLength()]))
+                log("In send dataQue loop, adding: " + bytearray(msg[i : i + RxPacket.getDataLength()]).decode('UTF-8'))
+
 
         log("Constructing to data queue...\n")
         #construct packet queue from data queue
+
+        #numPackQd = 0
+
         for data in dataQueue:
             if data == dataQueue[0]:
                 flags = (False, False, False, False, True, False)
@@ -229,7 +254,6 @@ class RxPSocket:
                 flags = (False, False, False, False, False, True)
             else:
                 flags = (False, False, False, False, False, False)
-
             packet = RxPacket(
                     srcPort = self.srcRxPPort,
                     desPort = self.desRxPPort,
@@ -240,29 +264,46 @@ class RxPSocket:
                     data = data
                     )
 
+
             self.seqNum += 1
             if self.seqNum >= RxPacket.maxSeqNum():
                 self.seqNum = 0
 
+
+            if packet.isAck():
+                sys.exit(0)
+
             packetQueue.append(packet)
+            #numPackQd += 1
+            #print numPackQd
 
         log("Packet queue created...\n")
 
         log("Preparing to send packets...\n")
+
+        numPackSent = 0
+
 
         resetsLeft = self.resetLimit
         while packetQueue and resetsLeft:
             #send packets in send window
             window = self.sendWindowSize
             while window and packetQueue:
-                packetToSend = packetQueue.popLeft()
-                log("Sending RxPPacket to IP: " + destAddr + " and port + " + desUDPPort + "...\n")
-                self.sendto(packet.toByteArray(), (self.desAddr, self.desUDPPort))
-                log("RxPPacket sent!\n")
-                lastSeqNum = packet.header['seqNum']
+                packetToSend = packetQueue.popleft()
 
-                window -= 1
-                sentQueue.append(packet)
+                if (not isinstance(packetToSend, int)) and (not packetToSend.isAck()):
+                    #log("Sending RxPPacket to IP: " + str(self.desAddr) + " and port + " + str(self.desUDPPort) + "...\n")
+                    self.sendto(packetToSend.toByteArray(), (self.desAddr, self.desUDPPort))
+                    numPackSent+=1
+                    #log("RxPPacket sent!\n")
+                    #log("RXP PACKET SIZE: " + str(len(packet.toByteArray())))
+                    lastSeqNum = packetToSend.header['seqNum']
+
+                    window -= 1
+                    sentQueue.append(packet)
+
+                else:
+                    continue
 
             try:
                 data, address = self.recvfrom(self.recvWindowSize)
@@ -286,9 +327,10 @@ class RxPSocket:
             else:
                 window += 1
                 if (isinstance(packet, int)):
-                    while packet < 0:
+                    while packet < 0 and sentQueue:
                         packetQueue.appendleft(sentQueue.pop())
                         packet += 1
+                        continue
                 elif handShakeFinishedCheck.isAck() and handShakeFinishedCheck.header['ackNum'] == self.finalCnctAckNum:
 
                     flags = (False, False, True, False, False, False)
@@ -315,7 +357,7 @@ class RxPSocket:
         if not resetsLeft:
             raise Exception('socket timeout')
 
-    def recv(self):
+    def recv(self, maxLength):
         if self.srcRxPPort is None:
             self.log("Socket already closed")
 
@@ -323,6 +365,8 @@ class RxPSocket:
             self.log("Socket already closed")
 
         message = bytes()
+        log("INTIIAL INSTANTIATED MESSAGE: " + message.decode('UTF-8') + "\n")
+        log("INTIAL MESSAGE LENGTH: " + str(len(message)))
 
         resetsLeft = self.resetLimit
         while resetsLeft:
@@ -343,7 +387,15 @@ class RxPSocket:
                 self.ackNum = packet.header['seqNum'] + 1
                 if self.ackNum > RxPacket.maxAckNum():
                     self.ackNum = 0
+
+                if packet.isAck():
+                    resetsLeft -= 1
+                    continue
+
                 message += packet.data
+
+                #log("Message so far is " + message.decode('UTF-8') + "\n")
+                #log("Individual packet this time was " + packet.data.decode('UTF-8') + "\n")
 
                 flags = (False, False, True, False, False, False)
                 ackPacket = RxPacket(
@@ -355,7 +407,6 @@ class RxPSocket:
                             winSize = self.recvWindowSize,
                             )
                 self.sendto(ackPacket.toByteArray(), (self.desAddr, self.desUDPPort))
-
                 if (packet.isEndOfMessage()):
                     break
 
@@ -373,30 +424,39 @@ class RxPSocket:
                     self.__closePassive(ackPacket)
                     break
 
-                return message
+                #superlog("Returning message of length: " + str(len(message)))
+                #return message
 
 
         if not resetsLeft:
             raise Exception('Socket timeout')
 
-
+        superlog("Returning message of length: " + str(len(message)))
         return message
 
     def sendto(self, data, address):
-        self.log("Sending packet to " + str(address) + "\n")
-        self.socket.sendto(data, address)
+        #self.log("Sending packet to " + str(address) + " in sendto...\n")
+        try:
+            self.socket.sendto(data, address)
+        except Exception as e:
+            self.log("Exception when calling socket.sendto: " + str(e))
+            sys.exit(0)
 
     def recvfrom(self, recvWindow):
         while True:
             try:
+                log("Waiting to receive message...\n" )
                 packet = self.socket.recvfrom(recvWindow)
-                self.log("Recieving message from " + str(packet[1]) + "\n")
+                log("Message received from " + str(packet[1]) + "\n")
+                break
             except socket.error as error:
+                log("Socket error: " + str(error))
                 if error.errno is 35:
                     continue
                 else:
                     raise e
 
+        log("Returning packet from recvfrom...\n")
         return packet
 
     def close(self):
@@ -557,15 +617,23 @@ class RxPSocket:
 
         #transfer packet
         resetsLeft = self.resetLimit
-        self.log("entering send loop for INIT packet......\n")
+        self.log("Entering send loop for INIT packet......\n")
         while resetsLeft:
-            self.log("Sending init......\n")
-            self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+            self.log("Sending init to IP: " + self.desAddr + " and Port:" + str(self.desUDPPort) +"...\n")
 
             try:
-                self.log("waiting for ack......\n")
-                data, address = bytearray(self.recvfrom(self.rcvWindowSize))
+                self.sendto(initPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+            except Exception as e:
+                self.log("Exception while calling sendto: " + str(e) + "\n")
+
+            self.log("SENT INIT PACKET!\n")
+
+            try:
+                self.log("Waiting for ack......\n")
+                data, address = self.recvfrom(self.recvWindowSize)
+                log("Packet received successfully, calling reconstructPacket from _sendINIT...\n")
                 packet = self.__reconstructPacket(data = bytearray(data))
+                log("Packet successfully reconstructed inside _sendINIT...\n")
 
                 if not packet:
                     self.log("Checksum failed......\n")
@@ -590,32 +658,53 @@ class RxPSocket:
     def __sendCnct(self):
 
         #create packet
-        self.log("Creating cnct packet......\n")
-        flags = (False, True, False, False, False, False)
-        cnctPacket = RxPacket.getCnct(
-                    srcPort = self.srcRxPPort,
-                    desPort = self.desRxPPort,
-                    seqNum = self.seqNum,
-                    winSize = self.recvWindowSize,
-                    )
+        self.log("Creating init packet......\n")
+
+        try:
+            self.log("Setting flags...\n")
+            flags = (True, False, False, False, False, False)
+        except Exception as e:
+            self.log("Exception: " + str(e))
+            sys.exit(0)
+        self.log("Flags created...\n")
+
+        try:
+            cnctPacket = RxPacket.getCnct(
+                        srcPort = self.srcRxPPort,
+                        desPort = self.desRxPPort,
+                        seqNum = self.seqNum,
+                        ackNum = self.ackNum,
+                        winSize = self.recvWindowSize,
+                        )
+        except Exception as e:
+            self.log("Exception: " + str(e))
+            sys.exit(0)
 
         #increment seq num
+        self.log("Incrementing sequence number......\n")
         self.seqNum = self.seqNum + 1 #increment by number of bytes (20 byte header only)
         if self.seqNum > RxPacket.maxSeqNum():
             self.seqNum = 0
 
-
         #transfer packet
         resetsLeft = self.resetLimit
-        self.log("entering send loop for INIT packet......\n")
+        self.log("Entering send loop for CNCT packet......\n")
         while resetsLeft:
-            self.log("Sending init......\n")
-            self.sendto(cnctPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+            self.log("Sending init to IP: " + self.desAddr + " and Port:" + str(self.desUDPPort) +"...\n")
 
             try:
-                self.log("waiting for ack......\n")
-                data, address = bytearray(self.recvfrom(self.rcvWindowSize))
+                self.sendto(cnctPacket.toByteArray(), (self.desAddr, self.desUDPPort))
+            except Exception as e:
+                self.log("Exception while calling sendto: " + str(e) + "\n")
+
+            self.log("SENT INIT PACKET!\n")
+
+            try:
+                self.log("Waiting for ack......\n")
+                data, address = self.recvfrom(self.recvWindowSize)
+                log("Packet received successfully, calling reconstructPacket from _sendCNCT...\n")
                 packet = self.__reconstructPacket(data = bytearray(data))
+                log("Packet successfully reconstructed inside _sendCNCT...\n")
 
                 if not packet:
                     self.log("Checksum failed......\n")
@@ -628,7 +717,7 @@ class RxPSocket:
                     self.log("init has been acked......\n")
                     break
                 else:
-                    self.log("Wrong packet recieved, restarting init loop......\n")
+                    self.log("Wrong packet recieved, restarting cnct loop......\n")
                     resetsLeft -= 1
 
         if not resetsLeft:
@@ -639,10 +728,18 @@ class RxPSocket:
 
 
     def __reconstructPacket(self, data, checkAckNum = False):
-        packet = RxPocket.fromByteArray(data)
 
+        log("Calling fromByteArray inside ReconstructPacket...\n")
+        packet = RxPacket.fromByteArray(data)
+        log("Packet created using fromByteArray inside ReconstructPacket...\n")
+
+        log("Calling isValid() inside Reconstruct packet...\n")
         if not packet.isValid():
+            log("Packet wasn't valid...\n")
             return None
+        else:
+            log("Packet was valid...\n")
+
 
         if checkAckNum:
 
@@ -653,4 +750,9 @@ class RxPSocket:
 			if packetAckNum and ackMismatch:
 				return ackMismatch
 
+        log("About to return ReconstructedPacket...\n")
+        log("The packet header for this Reconstruct packet is: " + str(packet.header) + "\n")
+        if packet.data:
+            log("The number of pytes for this Reconstructed packet is :" + str(len(packet.data)))
+            log("PACKET DATA: " + packet.data.decode('UTF-8'))
         return packet
